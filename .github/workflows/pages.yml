@@ -1,0 +1,33 @@
+# Publishes only the Duo Screen Check page (plugins/make-it-fold/probe) to GitHub Pages,
+# so people can open it on a real iPhone Duo. Nothing else in the repo goes on the site.
+name: Duo Screen Check page
+
+on:
+  push:
+    branches: [main]
+    paths: ["plugins/make-it-fold/probe/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: plugins/make-it-fold/probe
+      - id: deployment
+        uses: actions/deploy-pages@v4

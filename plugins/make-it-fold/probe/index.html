@@ -3,21 +3,186 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Duo probe</title>
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Fold, unfold and turn your iPhone Duo. Each position is checked against the simulator the make-it-fold plugin is tested on.">
+<title>Duo Screen Check</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='4' width='22' height='24' rx='4' fill='none' stroke='%233a5bd9' stroke-width='2.5'/%3E%3Cpath d='M16 4v24' stroke='%233a5bd9' stroke-width='2' stroke-dasharray='3 2.5'/%3E%3C/svg%3E">
 <style>
-  :root { color-scheme: light dark; --bg: #ffffff; --fg: #111111; --muted: #666666; --accent: #0a66ff; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #111111; --fg: #f2f2f2; --muted: #9a9a9a; --accent: #5c9dff; } }
-  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.4 -apple-system, system-ui, sans-serif; }
-  main {
-    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
-             max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  :root {
+    --surface: oklch(0.988 0.004 85);
+    --surface-muted: oklch(0.958 0.006 85);
+    --surface-sunk: oklch(0.935 0.007 85);
+    --ink: oklch(0.24 0.012 260);
+    --ink-muted: oklch(0.52 0.012 260);
+    --line: oklch(0.885 0.007 85);
+    --accent: oklch(0.5 0.16 262);
+    --accent-strong: oklch(0.42 0.15 262);
+    --on-accent: oklch(0.985 0.004 85);
+    --ok: oklch(0.6 0.14 152);
+    --ok-strong: oklch(0.46 0.12 152);
+    --warn: oklch(0.72 0.15 68);
+    --warn-strong: oklch(0.5 0.12 58);
+    --hatch: oklch(0.82 0.03 68);
+    --accent-tint: oklch(0.945 0.03 262);
+    --ease-ui: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+    --dur-feedback: 110ms;
+    --dur-state: 160ms;
+    --dur-reveal: 320ms;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 36px;
   }
-  h1 { font-size: 20px; margin: 0 0 12px; }
-  table { border-collapse: collapse; width: 100%; max-width: 560px; }
-  td { padding: 4px 8px 4px 0; vertical-align: top; overflow-wrap: anywhere; }
-  td:first-child { color: var(--muted); white-space: nowrap; }
-  button { font: inherit; font-size: 18px; padding: 14px 22px; border: 0; border-radius: 12px;
-           background: var(--accent); color: #ffffff; margin: 12px 0; min-width: 200px; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: oklch(0.19 0.008 262);
+      --surface-muted: oklch(0.225 0.009 262);
+      --surface-sunk: oklch(0.255 0.01 262);
+      --ink: oklch(0.95 0.005 85);
+      --ink-muted: oklch(0.7 0.012 262);
+      --line: oklch(0.32 0.012 262);
+      --accent: oklch(0.74 0.12 262);
+      --accent-strong: oklch(0.82 0.1 262);
+      --on-accent: oklch(0.2 0.02 262);
+      --ok: oklch(0.74 0.14 152);
+      --ok-strong: oklch(0.8 0.12 152);
+      --warn: oklch(0.8 0.14 72);
+      --warn-strong: oklch(0.85 0.12 72);
+      --hatch: oklch(0.45 0.06 68);
+      --accent-tint: oklch(0.29 0.045 262);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  html, body { margin: 0; background: var(--surface); color: var(--ink); }
+  body {
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    max-width: 760px; margin: 0 auto;
+    padding: max(var(--space-5), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
+             max(var(--space-5), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-muted); margin: 0;
+  }
+  header { margin-bottom: var(--space-5); }
+  h1 { font-size: 26px; line-height: 1.15; letter-spacing: -0.015em; font-weight: 700; margin: var(--space-1) 0 var(--space-2); }
+  .lede { margin: 0; color: var(--ink-muted); max-width: 46ch; }
+
+  /* A small map of the phone: both screens to scale, the one in use lit up */
+  .now { display: grid; gap: var(--space-4); align-items: center; }
+  @media (min-width: 520px) { .now { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); } }
+  .stage { position: relative; height: 184px; border-radius: 14px; background: var(--surface-muted); overflow: hidden; }
+  .screen {
+    position: absolute; left: 0; top: 0; border-radius: 7px; transform-origin: 0 0;
+    border: 1.5px dashed color-mix(in oklch, var(--ink-muted) 55%, transparent); background: transparent;
+    transition: border-color var(--dur-state) var(--ease-ui), background-color var(--dur-state) var(--ease-ui);
+  }
+  .screen.move { transition: transform var(--dur-reveal) var(--ease-move), border-color var(--dur-state) var(--ease-ui),
+                 background-color var(--dur-state) var(--ease-ui); }
+  .screen.on { border: 1.5px solid var(--accent); background: var(--accent-tint); }
+  .fold { position: absolute; border: 0 dashed color-mix(in oklch, var(--ink-muted) 45%, transparent); }
+  .screen.on .fold { border-color: color-mix(in oklch, var(--accent) 40%, transparent); }
+  .fold.down { top: 6%; bottom: 6%; left: 50%; border-left-width: 1px; }
+  .fold.across { left: 6%; right: 6%; top: 50%; border-top-width: 1px; }
+  .safe { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 0 0 5px 5px;
+          background: repeating-linear-gradient(135deg, var(--hatch) 0 1.5px, transparent 1.5px 5px); }
+  .tag { position: absolute; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+         color: var(--ink-muted); white-space: nowrap; transform: translateX(-50%); line-height: 1;
+         transition: color var(--dur-state) var(--ease-ui); }
+  .tag.on { color: var(--accent-strong); }
+  .readout { display: grid; gap: var(--space-2); align-content: start; }
+  .pose { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+  .size { font-size: 32px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.05; margin: 0; }
+  .clear { margin: 0; color: var(--ink-muted); font-size: 13px; }
+  .verdict { display: flex; gap: var(--space-2); align-items: baseline; margin: var(--space-1) 0 0; }
+  .verdict-text { margin: 0; }
+  .verdict-sub { display: block; color: var(--ink-muted); font-size: 13px; }
+  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--line); transform: translateY(-1px); }
+  .dot.ok { background: var(--ok); }
+  .dot.warn { background: var(--warn); }
+  .dot.new { background: var(--accent); }
+  .dot.wait { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-muted); }
+  .settling .verdict { opacity: 0.55; }
+  .verdict { transition: opacity var(--dur-state) var(--ease-ui); }
+
+  /* The five positions */
+  .positions { margin-top: var(--space-6); }
+  .row-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3);
+              padding-bottom: var(--space-2); border-bottom: 1px solid var(--line); }
+  ol { list-style: none; margin: 0; padding: 0; }
+  li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: var(--space-3); align-items: baseline;
+       padding: 11px 0; border-bottom: 1px solid var(--line); }
+  li .dot { transform: translateY(-1px); }
+  li .label { min-width: 0; }
+  li .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  li .val.pending { color: var(--ink-muted); }
+  li .val.warn { color: var(--warn-strong); font-weight: 600; }
+  li .hint { grid-column: 2 / 4; color: var(--ink-muted); font-size: 13px; margin-top: -2px; }
+  li.current .label { font-weight: 650; }
+  li.flash { animation: flash 900ms var(--ease-ui); }
+  @keyframes flash { from { background: color-mix(in oklch, var(--ok) 14%, transparent); } to { background: transparent; } }
+
+  .done { display: flex; gap: var(--space-2); align-items: baseline; margin: var(--space-4) 0 0; font-weight: 600; }
+  .actions { display: flex; align-items: center; gap: var(--space-4); margin-top: var(--space-5); flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; height: 40px; padding: 0 18px; border: 0; border-radius: 8px;
+    background: var(--accent); color: var(--on-accent); min-width: 148px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color var(--dur-state) var(--ease-ui), transform var(--dur-feedback) var(--ease-ui);
+  }
+  button:active { transform: scale(0.98); }
+  button.quiet { background: transparent; color: var(--ink-muted); min-width: 0; padding: 0 4px; font-weight: 500; }
+  @media (hover: hover) and (pointer: fine) {
+    button:hover { background: var(--accent-strong); }
+    button.quiet:hover { background: transparent; color: var(--ink); }
+  }
+  button:focus { outline: none; }
+  button:focus-visible { box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 35%, transparent); }
+  .privacy { color: var(--ink-muted); font-size: 13px; margin: var(--space-3) 0 0; }
+
+  /* Every number, for whoever wants them */
+  details { margin-top: var(--space-6); border-top: 1px solid var(--line); }
+  summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+            padding: var(--space-3) 0; font-weight: 600; -webkit-tap-highlight-color: transparent; }
+  summary::-webkit-details-marker { display: none; }
+  summary:focus { outline: none; }
+  summary:focus-visible { box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 35%, transparent); border-radius: 4px; }
+  .chev { width: 9px; height: 9px; border-right: 1.5px solid var(--ink-muted); border-bottom: 1.5px solid var(--ink-muted);
+          transform: rotate(45deg) translate(-2px, -2px); transition: transform var(--dur-state) var(--ease-ui); }
+  details[open] .chev { transform: rotate(225deg) translate(-2px, -2px); }
+  dl { display: grid; grid-template-columns: minmax(120px, 168px) minmax(0, 1fr); gap: var(--space-2) var(--space-4); margin: 0 0 var(--space-4); }
+  dt { color: var(--ink-muted); font-size: 13px; }
+  dd { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+  footer { margin-top: var(--space-6); color: var(--ink-muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus { outline: none; }
+  a:focus-visible { box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 35%, transparent); border-radius: 2px; }
+
+  [hidden] { display: none !important; }
+
+  /* Short, wide screens: the picture and the readout sit side by side. */
+  @media (min-width: 560px) and (orientation: landscape) {
+    header { margin-bottom: var(--space-4); }
+  }
+  @media (max-height: 440px) and (orientation: landscape) {
+    main { padding-top: max(var(--space-4), env(safe-area-inset-top)); }
+    h1 { font-size: 22px; }
+    .lede { display: none; }
+    .stage { height: 180px; }
+    .size { font-size: 30px; }
+  }
+  @media (min-width: 520px) and (orientation: portrait) {
+    .stage { height: 240px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .screen.move { transition: none; }
+    li.flash { animation: none; }
+  }
+
   .ruler { position: fixed; left: 0; top: 0; width: 0; visibility: hidden; pointer-events: none; }
   #inset { position: fixed; visibility: hidden; pointer-events: none;
            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
@@ -25,10 +190,48 @@
 </head>
 <body>
 <main>
-  <h1>Duo probe</h1>
-  <button id="tap" type="button">Tap me (0)</button>
-  <table id="out"></table>
-  <p id="note"></p>
+  <header>
+    <p class="eyebrow">make-it-fold</p>
+    <h1>Duo Screen Check</h1>
+    <p class="lede" id="lede">Fold, unfold and turn your phone. Every position is checked against the simulator the plugin is tested on.</p>
+  </header>
+
+  <section class="now" id="now" aria-live="polite">
+    <div class="stage" id="stage" aria-hidden="true">
+      <div class="screen" id="scr-cover"></div>
+      <div class="screen" id="scr-inner"><div class="fold" id="fold"></div><div class="safe" id="safe"></div></div>
+      <span class="tag" id="tag-cover">Closed</span>
+      <span class="tag" id="tag-inner">Open</span>
+    </div>
+    <div class="readout">
+      <p class="eyebrow">Right now</p>
+      <p class="pose" id="pose"></p>
+      <p class="size num" id="size"></p>
+      <p class="clear" id="clear" hidden></p>
+      <div class="verdict" id="verdict"><span class="dot" id="vdot"></span><p class="verdict-text" id="vtext"></p></div>
+    </div>
+  </section>
+
+  <section class="positions" id="positions">
+    <div class="row-head"><p class="eyebrow" id="list-title">Positions</p><p class="eyebrow num" id="progress"></p></div>
+    <ol id="list"></ol>
+    <p class="done" id="done" hidden><span class="dot" id="done-dot"></span><span id="done-text"></span></p>
+    <div class="actions" id="actions">
+      <button type="button" id="share">Share results</button>
+      <button type="button" class="quiet" id="reset">Start over</button>
+    </div>
+    <p class="privacy" id="privacy">Nothing on this page is sent anywhere. Sharing is up to you.</p>
+  </section>
+
+  <details id="details">
+    <summary>Every number<span class="chev" aria-hidden="true"></span></summary>
+    <dl id="out"></dl>
+  </details>
+
+  <footer>
+    Part of <a href="https://github.com/theJoshLucas/make-it-fold">make-it-fold</a>, a free Claude Code plugin that makes
+    apps work on the iPhone Duo.
+  </footer>
 </main>
 <div class="ruler" id="svh" style="height:100svh"></div>
 <div class="ruler" id="dvh" style="height:100dvh"></div>
@@ -36,97 +239,320 @@
 <div class="ruler" id="vh" style="height:100vh"></div>
 <div id="inset"></div>
 <script>
-// Duo probe: shows what this screen gives a web page, and (when served by duo-shot's local
-// listener) posts the same numbers to /report so tests can verify a fold from inside the page.
+// Duo Screen Check. Shows what this screen gives a web page, recognises the iPhone Duo's five
+// positions and compares each one with what the Duo simulator measured (references/facts.md).
+// When it is served from this computer by duo-listen, it also posts the same numbers to /report
+// so a test can verify a fold from inside the page. Anywhere else, nothing leaves the phone.
 (function () {
-  var taps = 0;
+  // The Duo simulator's Safari numbers (CSS px). Heights: toolbars shown, then hidden.
+  var POSES = [
+    { id: "cover-tall", label: "Closed, tall", w: 382, h: [580, 618], ins: [0, 0, 0, 0] },
+    { id: "cover-wide", label: "Closed, wide", w: 594, h: [368, 406], ins: [0, 0, 0, 0] },
+    { id: "cover-wide-flipped", label: "Closed, wide, flipped", w: 594, h: [368, 406], ins: [0, 0, 0, 0] },
+    { id: "inner-tall", label: "Open, tall", w: 669, h: [867, 902], ins: [0, 0, 34, 0] },
+    { id: "inner-wide", label: "Open, wide", w: 951, h: [585, 620], ins: [0, 0, 34, 0] }
+  ];
+  var KEY = "duo-screen-check-v1";
+  var $ = function (id) { return document.getElementById(id); };
+
   if (!window.__duoMarker) window.__duoMarker = Date.now() + "-" + Math.random().toString(36).slice(2);
-  function px(id) { return Math.round(document.getElementById(id).getBoundingClientRect().height); }
+  var local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+
+  function px(id) { return Math.round($(id).getBoundingClientRect().height); }
   function inset() {
-    var s = getComputedStyle(document.getElementById("inset"));
-    return { top: parseFloat(s.paddingTop), right: parseFloat(s.paddingRight),
-             bottom: parseFloat(s.paddingBottom), left: parseFloat(s.paddingLeft) };
+    var s = getComputedStyle($("inset"));
+    return [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft].map(function (v) { return Math.round(parseFloat(v) || 0); });
   }
   function mode() {
     var modes = ["standalone", "fullscreen", "minimal-ui", "browser"];
     for (var i = 0; i < modes.length; i++) if (matchMedia("(display-mode: " + modes[i] + ")").matches) return modes[i];
-    return "unknown";
+    if (navigator.standalone) return "standalone";
+    return "browser";
   }
   function posture() {
     if (navigator.devicePosture && navigator.devicePosture.type) return navigator.devicePosture.type;
-    if (matchMedia("(device-posture: folded)").matches) return "folded (media query)";
-    if (matchMedia("(device-posture: continuous)").matches) return "continuous (media query)";
+    if (matchMedia("(device-posture: folded)").matches) return "folded";
+    if (matchMedia("(device-posture: continuous)").matches) return "continuous";
     return "not available";
   }
   function segments() {
-    if (window.viewport && window.viewport.segments) return window.viewport.segments.length + " segment(s)";
-    return "not available";
+    return window.viewport && window.viewport.segments ? window.viewport.segments.length + " segment(s)" : "not available";
   }
-  function rect(id) {
-    var r = document.getElementById(id).getBoundingClientRect();
-    return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+  function orient() {
+    return (screen.orientation && screen.orientation.type) || (innerWidth > innerHeight ? "landscape" : "portrait");
   }
   var lastClick = null;
-  // Every touch reports where it landed in page coordinates, so a test can work out the
-  // offset between screen points and page pixels with one calibration tap.
   document.addEventListener("click", function (e) {
     lastClick = { clientX: Math.round(e.clientX), clientY: Math.round(e.clientY), target: e.target.id || e.target.tagName };
-    report("click");
+    post("click");
   }, true);
+
   function read(reason) {
     var i = inset();
     return {
-      tapButton: rect("tap"), lastClick: lastClick,
-      reason: reason, marker: window.__duoMarker, taps: taps, time: new Date().toISOString(),
+      reason: reason, marker: window.__duoMarker, time: new Date().toISOString(), lastClick: lastClick,
       innerWidth: innerWidth, innerHeight: innerHeight,
       visualViewport: window.visualViewport ? [Math.round(visualViewport.width), Math.round(visualViewport.height)] : null,
       screen: [screen.width, screen.height], dpr: devicePixelRatio,
       svh: px("svh"), dvh: px("dvh"), lvh: px("lvh"), vh: px("vh"),
-      insetTop: i.top, insetRight: i.right, insetBottom: i.bottom, insetLeft: i.left,
-      orientation: (screen.orientation && screen.orientation.type) || (innerWidth > innerHeight ? "landscape" : "portrait"),
-      userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints,
+      insetTop: i[0], insetRight: i[1], insetBottom: i[2], insetLeft: i[3],
+      orientation: orient(), userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints,
       displayMode: mode(), posture: posture(), viewportSegments: segments()
     };
   }
-  function show(d) {
+
+  // Which of the five positions this is. Size alone tells cover from inner (screen.width
+  // reports the cover size even when the phone is open, so it is never used for this).
+  function classify(d) {
+    var tall = d.innerHeight >= d.innerWidth;
+    if (tall) return d.innerWidth < 520 ? "cover-tall" : "inner-tall";
+    if (d.innerHeight >= 480) return "inner-wide";
+    return /secondary/.test(d.orientation) ? "cover-wide-flipped" : "cover-wide";
+  }
+  function pose(id) { for (var i = 0; i < POSES.length; i++) if (POSES[i].id === id) return POSES[i]; }
+  function ins(d) { return [d.insetTop, d.insetRight, d.insetBottom, d.insetLeft]; }
+  function compare(d, p) {
+    if (d.displayMode !== "browser") return "new";
+    var ok = d.innerWidth === p.w && p.h.indexOf(d.innerHeight) >= 0 && ins(d).join() === p.ins.join();
+    return ok ? "ok" : "warn";
+  }
+  var duoScreen = [screen.width, screen.height].sort().join("x") === "466x678";
+  var phone = /iPhone/.test(navigator.userAgent) || duoScreen;
+  var visitor = !phone;
+
+  var seen = {};
+  try { seen = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { seen = {}; }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(seen)); } catch (e) {} }
+
+  function wxh(w, h) { return w + " × " + h; }
+
+  // The picture: both screens side by side at one scale, in the shape the phone is in now.
+  // The screen in use is drawn from the live numbers; the other from the simulator's.
+  var prev = {};
+  function place(el, x, y, w, h) {
+    var old = prev[el.id];
+    el.classList.remove("move");
+    el.style.left = x + "px"; el.style.top = y + "px"; el.style.width = w + "px"; el.style.height = h + "px";
+    if (old && (old.x !== x || old.y !== y || old.w !== w || old.h !== h) &&
+        !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      el.style.transform = "translate(" + (old.x - x) + "px," + (old.y - y) + "px) scale(" +
+        (old.w / w).toFixed(4) + "," + (old.h / h).toFixed(4) + ")";
+      void el.offsetWidth;
+      el.classList.add("move");
+    }
+    el.style.transform = "none";
+    prev[el.id] = { x: x, y: y, w: w, h: h };
+  }
+  function draw(d, id) {
+    var stage = $("stage"), sw = stage.clientWidth, sh = stage.clientHeight;
+    var cover = $("scr-cover"), inner = $("scr-inner");
+    if (visitor) {
+      cover.hidden = true; $("tag-cover").hidden = true; $("tag-inner").hidden = true;
+      var kv = Math.min((sw - 48) / d.innerWidth, (sh - 48) / d.innerHeight);
+      var vw = Math.round(d.innerWidth * kv), vh = Math.round(d.innerHeight * kv);
+      inner.classList.add("on"); $("fold").hidden = true; $("safe").hidden = true;
+      place(inner, Math.round((sw - vw) / 2), Math.round((sh - vh) / 2), vw, vh);
+      return;
+    }
+    var tall = d.innerHeight >= d.innerWidth, onInner = id.indexOf("inner") === 0;
+    var c = pose(tall ? "cover-tall" : "cover-wide"), n = pose(tall ? "inner-tall" : "inner-wide");
+    var cw = onInner ? c.w : d.innerWidth, ch = onInner ? c.h[0] : d.innerHeight;
+    var iw = onInner ? d.innerWidth : n.w, ih = onInner ? d.innerHeight : n.h[0];
+    var gap = 14, labelRoom = 26, pad = 18;
+    var k = Math.min((sw - 2 * pad - gap) / (cw + iw), (sh - pad - labelRoom - 10) / Math.max(ch, ih));
+    var a = [Math.round(cw * k), Math.round(ch * k)], b = [Math.round(iw * k), Math.round(ih * k)];
+    var x0 = Math.round((sw - a[0] - gap - b[0]) / 2), base = Math.round(pad + Math.max(a[1], b[1]) + (sh - pad - labelRoom - 10 - Math.max(a[1], b[1])) / 2);
+    place(cover, x0, base - a[1], a[0], a[1]);
+    place(inner, x0 + a[0] + gap, base - b[1], b[0], b[1]);
+    cover.classList.toggle("on", !onInner); inner.classList.toggle("on", onInner);
+    $("tag-cover").classList.toggle("on", !onInner); $("tag-inner").classList.toggle("on", onInner);
+    $("tag-cover").style.left = (x0 + a[0] / 2) + "px"; $("tag-cover").style.top = (base + 12) + "px";
+    $("tag-inner").style.left = (x0 + a[0] + gap + b[0] / 2) + "px"; $("tag-inner").style.top = (base + 12) + "px";
+    // Wide and open is a book (the fold runs down the middle); tall and open is a laptop (across).
+    $("fold").className = "fold " + (tall ? "across" : "down");
+    var i = onInner ? ins(d) : n.ins;
+    $("safe").style.height = Math.max(i[2] ? 3 : 0, Math.round(i[2] * k)) + "px";
+    $("safe").hidden = !i[2];
+  }
+
+  function clearText(i) {
+    var parts = [], names = ["top", "right", "bottom", "left"];
+    i.forEach(function (v, n) { if (v) parts.push("the " + names[n] + " " + v); });
+    var only = i[0] === 0 && i[1] === 0 && i[3] === 0;
+    return "Hatched: " + parts.join(" and ") + " is kept clear" + (only ? " for the home bar." : " for the system.");
+  }
+
+  function differ(r, p) {
+    var out = [], names = ["top", "right", "bottom", "left"];
+    var hOk = p.h.indexOf(r.h) >= 0;
+    if (r.w !== p.w || !hOk) out.push("size " + wxh(p.w, p.h[0]) + (p.h.length > 1 ? " (or " + p.h[1] + " tall with the toolbar hidden)" : ""));
+    if (r.ins.join() !== p.ins.join()) {
+      var c = []; p.ins.forEach(function (v, n) { if (v) c.push(names[n] + " " + v); });
+      out.push("kept clear: " + (c.length ? c.join(", ") : "nothing"));
+    }
+    return "Simulator: " + out.join("; ") + ".";
+  }
+
+  function verdictFor(d, p, state) {
+    if (visitor) return { dot: "", text: "To run it, open this page in Safari on an iPhone Duo:", sub: location.host + location.pathname.replace(/index\.html$/, "") };
+    if (state === "new") return { dot: "new", text: "Opened from the Home Screen, which the simulator hasn't measured yet.", sub: "Your numbers are new information. Please share them." };
+    if (state === "ok") return { dot: "ok", text: "Matches the simulator." };
+    if (!duoScreen) return { dot: "warn", text: "This doesn't look like an iPhone Duo.",
+      sub: "Its screen reports " + wxh(screen.width, screen.height) + "; a Duo reports 466 \u00d7 678. If this is a Duo, that's news: please share your results." };
+    return { dot: "warn", text: "Different from the simulator.", sub: differ({ w: d.innerWidth, h: d.innerHeight, ins: ins(d) }, p) + " Please share your results." };
+  }
+
+  function render(d, settled) {
+    if (!d.innerWidth || !d.innerHeight) return; // a hidden tab measures 0 x 0; wait for a real size
+    var id = classify(d), p = pose(id), state = compare(d, p);
+    $("pose").textContent = visitor ? "Your window" : p.label;
+    $("size").textContent = wxh(d.innerWidth, d.innerHeight);
+    $("clear").textContent = clearText(ins(d));
+    $("clear").hidden = !ins(d).some(Boolean);
+    var v = verdictFor(d, p, state);
+    $("vdot").className = "dot " + (settled ? v.dot : "wait");
+    $("vtext").innerHTML = (settled ? v.text : "Measuring…") + (settled && v.sub ? '<span class="verdict-sub">' + v.sub + "</span>" : "");
+    $("vdot").hidden = visitor;
+    $("now").classList.toggle("settling", !settled);
+    draw(d, id);
+    if (settled && !visitor) {
+      var was = seen[id];
+      seen[id] = { w: d.innerWidth, h: d.innerHeight, ins: ins(d), mode: d.displayMode, state: state, orientation: d.orientation };
+      save();
+      list(id, !was);
+    } else {
+      list(visitor ? null : id, false);
+    }
+    details(d);
+  }
+
+  function list(current, fresh) {
+    var html = "", done = 0;
+    POSES.forEach(function (p) {
+      var r = seen[p.id], cls = p.id === current ? "current" : "";
+      if (visitor) {
+        html += '<li><span class="dot"></span><span class="label">' + p.label + '</span><span class="val pending">' +
+          wxh(p.w, p.h[0]) + "</span></li>";
+        return;
+      }
+      if (r) done++;
+      var dot = r ? r.state : "", val, hint = "";
+      if (!r) val = '<span class="val pending">Not yet</span>';
+      else if (r.state === "warn") {
+        val = '<span class="val warn">' + wxh(r.w, r.h) + "</span>";
+        var mine = [], nm = ["top", "right", "bottom", "left"];
+        r.ins.forEach(function (v, n) { if (v) mine.push(nm[n] + " " + v); });
+        hint = '<span class="hint">' + (mine.length ? "Kept clear here: " + mine.join(", ") + ". " : "") + differ(r, p) + "</span>";
+      } else val = '<span class="val">' + wxh(r.w, r.h) + "</span>";
+      if (fresh && p.id === current) cls += " flash";
+      html += '<li class="' + cls + '" data-pose="' + p.id + '"><span class="dot ' + dot + '"></span><span class="label">' +
+        p.label + "</span>" + val + hint + "</li>";
+    });
+    $("list").innerHTML = html;
+    $("list-title").textContent = visitor ? "What the Duo simulator shows" : "Positions";
+    $("progress").textContent = visitor ? "" : done + " of " + POSES.length + " checked";
+    $("actions").hidden = visitor || done === 0;
+    var all = !visitor && done === POSES.length, bad = POSES.filter(function (p) { return seen[p.id] && seen[p.id].state === "warn"; }).length;
+    $("done").hidden = !all;
+    if (all) {
+      $("done-dot").className = "dot " + (bad ? "warn" : "ok");
+      $("done-text").textContent = bad ? bad + " of 5 positions differ from the simulator. Please share your results so the plugin can be corrected."
+        : "All five positions match the simulator. The plugin's numbers are right for this phone.";
+    }
+    $("privacy").hidden = visitor;
+  }
+
+  function details(d) {
     var rows = [
-      ["Width x height", d.innerWidth + " x " + d.innerHeight + " CSS px"],
-      ["Visual viewport", d.visualViewport ? d.visualViewport.join(" x ") : "n/a"],
-      ["100svh / dvh / lvh / vh", d.svh + " / " + d.dvh + " / " + d.lvh + " / " + d.vh],
-      ["Safe areas (T R B L)", [d.insetTop, d.insetRight, d.insetBottom, d.insetLeft].join(" / ")],
-      ["Screen, pixel ratio", d.screen.join(" x ") + ", " + d.dpr],
+      ["Usable area", wxh(d.innerWidth, d.innerHeight)],
+      ["Visible area", d.visualViewport ? wxh(d.visualViewport[0], d.visualViewport[1]) : "not available"],
+      ["Screen heights", "svh " + d.svh + " · dvh " + d.dvh + " · lvh " + d.lvh + " · vh " + d.vh],
+      ["Kept clear (top, right, bottom, left)", ins(d).join(", ")],
+      ["Reported screen", wxh(d.screen[0], d.screen[1]) + " at " + d.dpr + "x"],
       ["Orientation", d.orientation],
-      ["Display mode", d.displayMode],
-      ["Posture", d.posture],
-      ["Viewport segments", d.viewportSegments],
+      ["Opened as", d.displayMode === "browser" ? "Safari tab" : d.displayMode === "standalone" ? "Home Screen app" : d.displayMode],
+      ["Fold position sensor", d.posture],
+      ["Screen halves", d.viewportSegments],
       ["Touch points", d.maxTouchPoints],
-      ["User agent", d.userAgent],
-      ["Page marker", d.marker]
+      ["Browser", d.userAgent]
     ];
-    document.getElementById("out").innerHTML = rows.map(function (r) {
-      return "<tr><td>" + r[0] + "</td><td>" + String(r[1]).replace(/</g, "&lt;") + "</td></tr>";
+    $("out").innerHTML = rows.map(function (r) {
+      return "<dt>" + r[0] + "</dt><dd>" + String(r[1]).replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</dd>";
     }).join("");
   }
-  var reportOK = location.protocol !== "file:";
-  function report(reason) {
-    var d = read(reason);
-    show(d);
-    if (!reportOK) return;
-    fetch("/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) })
-      .then(function (r) { if (!r.ok) reportOK = false; })
-      .catch(function () { reportOK = false; });
+
+  function summary() {
+    var d = read("share"), lines = ["iPhone Duo screen check (make-it-fold)", ""];
+    POSES.forEach(function (p) {
+      var r = seen[p.id];
+      if (!r) { lines.push(p.label + ": not checked"); return; }
+      var word = r.state === "ok" ? "matches" : r.state === "new" ? "Home Screen app, nothing to compare" :
+        "DIFFERENT (simulator " + wxh(p.w, p.h[0]) + ", clear " + p.ins.join(" ") + ")";
+      lines.push(p.label + ": " + wxh(r.w, r.h) + ", clear " + r.ins.join(" ") + ", " + word);
+    });
+    lines.push("", "Reported screen " + wxh(d.screen[0], d.screen[1]) + " at " + d.dpr + "x, fold sensor " + d.posture,
+               d.userAgent, d.time.slice(0, 10));
+    return lines.join("\n");
   }
-  var t;
-  function soon(reason) { clearTimeout(t); t = setTimeout(function () { report(reason); }, 250); }
-  document.getElementById("tap").addEventListener("click", function () {
-    taps++; this.textContent = "Tapped " + taps + " time" + (taps === 1 ? "" : "s"); report("tap");
+  function flashLabel(btn, text) {
+    var old = btn.textContent; btn.style.minWidth = btn.offsetWidth + "px"; btn.textContent = text;
+    setTimeout(function () { btn.textContent = old; }, 1600);
+  }
+  var canShare = !!navigator.share;
+  $("share").textContent = canShare ? "Share results" : "Copy results";
+  $("share").addEventListener("click", function () {
+    var text = summary(), btn = this;
+    if (canShare) {
+      navigator.share({ title: "iPhone Duo screen check", text: text }).catch(function () {});
+      return;
+    }
+    var done = function () { flashLabel(btn, "Copied"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+    function fallback() {
+      var t = document.createElement("textarea"); t.value = text; t.style.cssText = "position:fixed;opacity:0;font-size:16px";
+      document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); done(); } catch (e) {}
+      t.remove();
+    }
   });
-  addEventListener("resize", function () { soon("resize"); });
-  if (window.visualViewport) visualViewport.addEventListener("resize", function () { soon("visual-resize"); });
-  addEventListener("orientationchange", function () { soon("orientation"); });
-  addEventListener("pageshow", function (e) { report(e.persisted ? "pageshow-cached" : "load"); });
-  document.getElementById("note").textContent =
-    "Nothing here is sent anywhere unless this page is served by a local test server on your own computer.";
+  $("reset").addEventListener("click", function () {
+    seen = {}; save(); lastJudged = null; changed("reset");
+  });
+
+  function post(reason) {
+    if (!local) return;
+    fetch("/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(read(reason)) })
+      .then(function (r) { if (!r.ok) local = false; }, function () { local = false; });
+  }
+
+  // While the phone is folding or turning, numbers pass through in-between values (one
+  // direction briefly reports 84 px at the side, and that can change with no resize event).
+  // Show them live, but only judge a position once two readings 350 ms apart agree.
+  var quick, check, last = null, lastJudged = null;
+  function sig(d) { return [d.innerWidth, d.innerHeight, ins(d).join(), d.orientation, d.displayMode].join("|"); }
+  function changed(reason) {
+    clearTimeout(quick);
+    quick = setTimeout(function () { render(read(reason), false); }, 60);
+    last = null; clearTimeout(check); check = setTimeout(function () { steady(reason); }, 450);
+  }
+  function steady(reason) {
+    var d = read(reason), k = sig(d);
+    if (last !== k) { last = k; check = setTimeout(function () { steady(reason); }, 350); return; }
+    if (k !== lastJudged) { lastJudged = k; render(d, true); post(reason); }
+  }
+  setInterval(function () {
+    if (document.visibilityState === "visible" && lastJudged && sig(read("poll")) !== lastJudged) changed("poll");
+  }, 1000);
+  addEventListener("resize", function () { changed("resize"); });
+  if (window.visualViewport) visualViewport.addEventListener("resize", function () { changed("visual-resize"); });
+  addEventListener("orientationchange", function () { changed("orientation"); });
+  addEventListener("pageshow", function (e) {
+    render(read("load"), false);
+    post(e.persisted ? "pageshow-cached" : "load");
+    lastJudged = null; changed(e.persisted ? "pageshow-cached" : "load");
+  });
+  if (visitor) $("lede").textContent = "A screen check for the iPhone Duo. On a Duo, it compares every fold position with the simulator the plugin is tested on.";
 })();
 </script>
 </body>

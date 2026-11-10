@@ -16,7 +16,10 @@ A Claude Code plugin, published from this repo as its own marketplace.
     native: install, launch, screenshot every pose), `duo-listen` (localhost-only server/proxy), `duo-reporter.js`.
   - `tools/duoctl.pin`: the reviewed duoctl commit. `/duo-setup` clones exactly that commit into
     `~/.cache/make-it-fold/duoctl/<sha>`.
-  - `probe/index.html`: shows what a screen gives a web page; posts to `/report` only when served locally.
+  - `probe/index.html`: the Duo Screen Check page. Recognises the five positions from the page's own size,
+    compares each with the simulator numbers in `references/facts.md` (copied into the page; update both
+    together), and posts to `/report` only when its address is localhost. Published on its own to GitHub
+    Pages by `.github/workflows/pages.yml` (only this folder goes on the site).
   - `practice/<type>/`: practice apps with planted bugs. `evals/<type>/`: `case.yaml` and a scaffold script.
 - `dev/answers/<type>/`: answer keys and fixed reference copies, OUTSIDE the plugin so exam sessions cannot read them. `dev/check-graders <case.yaml> <folder>` checks regex graders for free.
 

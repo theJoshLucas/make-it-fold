@@ -186,6 +186,11 @@ phone.
 Everything here was measured on the iPhone Duo **simulator** (Xcode 27.2, iOS 27.2). v0.1.0 has
 not been run against a real Duo yet.
 
+📏 **Got a real Duo?** Open [thejoshlucas.github.io/make-it-fold](https://thejoshlucas.github.io/make-it-fold/)
+in Safari, then fold, unfold and turn the phone. The page checks each position against the simulator's
+numbers. If anything is different, tap **Share results** and
+[post them in an issue](https://github.com/theJoshLucas/make-it-fold/issues), so the plugin can be corrected.
+
 ## 🛡️ Safety
 
 - **Your live data stays out of it.** Claude is told to run your app on your own computer with
