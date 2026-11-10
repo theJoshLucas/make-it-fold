@@ -1,8 +1,10 @@
 # Current status
 
 ## 2026-11-09: v0.1.0 built and reviewed, all 8 exams pass
-- Home: `github.com/theJoshLucas/make-it-fold`. Publishing steps (making the repo public, a version
+- Home: `github.com/theJoshLucas/make-it-fold`, public since 2026-11-09. Publishing steps (a version
   bump, hosting the probe page) are always asked first.
+- Install from the public address proven 2026-11-09 on a throwaway Claude Code setup: marketplace add,
+  install, all three commands present, `duo-setup` reports ready.
 - Plugin contents: skill + 14 reference files + 4 trap files (59 traps, written generically), 3 commands,
   scripts (`duo-setup`, `duo-sim`, `duo-scan`, `duo-shot`, `duo-listen`, `duo-reporter.js`), probe page,
   7 practice apps + 8 exam cases. Answer keys and fixed copies live in `dev/answers/` (outside the plugin).
@@ -14,7 +16,6 @@
   - the fixed Setlist was changed late (its compact layout now measures the song list's own width, trap W-08)
     and re-proven afterwards: 0 issues in 5 poses (cover upright, cover sideways both ways, inner upright, inner sideways).
   - Exam graders checked for free with `dev/check-graders`: every bug grader fails on the buggy app and passes on the fixed copy.
-  - A fresh install from a clean clone (marketplace add, install, `/duo-setup`) loads all three commands.
 - Pre-publication review (2026-11-09), each item tried right and wrong on the simulator:
   - the pinned duoctl is re-checked at run time: a changed or added file in the cached copy is refused, and
     `duo-setup --install` swaps in a clean copy without leaving a half-download at the trusted path;
