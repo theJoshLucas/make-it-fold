@@ -2,7 +2,12 @@
 
 ## 2026-11-09: v0.1.0 built and reviewed, all 8 exams pass
 - Home: `github.com/theJoshLucas/make-it-fold`, public since 2026-11-09. Publishing steps (a version
-  bump, hosting the probe page) are always asked first.
+  bump, a new hosted page) are always asked first.
+- Duo Screen Check (the probe page) is live at https://thejoshlucas.github.io/make-it-fold/ (2026-11-09),
+  published by `.github/workflows/pages.yml` (only the probe folder). Proven: duo-shot on the Duo simulator,
+  0 issues in all 5 poses with all five positions matching; the live address opened on the Duo simulator;
+  a regular iPhone 17 Pro simulator (dark mode) gets the not-a-Duo message; desktop browsers get the
+  visitor view (light and dark). Share and copy were not pressed on a real phone.
 - Install from the public address proven 2026-11-09 on a throwaway Claude Code setup: marketplace add,
   install, all three commands present, `duo-setup` reports ready.
 - Plugin contents: skill + 14 reference files + 4 trap files (59 traps, written generically), 3 commands,
@@ -32,7 +37,7 @@
 - Simulator findings folded in: Safari settles to 0 side insets in both cover-landscape directions (84 px appears
   only mid-turn); old Safari tabs answer test questions and add a 48 px tab bar (duo-shot now resets Safari and
   targets one page); another app can hold the IPv6 localhost port (duo-listen binds both).
-- NOT done / unverified: a second Mac (everything above ran on one machine); the probe page is not hosted
-  publicly yet (publish step); real iPhone Duo checks (day one: open the probe page in every pose); Expo
+- NOT done / unverified: the work Mac is installed but not ready (macOS 26.5.2, Xcode 26.6); real iPhone
+  Duo checks (day one: open the Duo Screen Check page in every position); Expo
   practice apps never installed or built (source only); `--allow-remote` cookie stripping was tested
   against a stand-in server, not a real logged-in site.
