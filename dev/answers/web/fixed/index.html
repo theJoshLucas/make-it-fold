@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Setlist</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <h2>Shows</h2>
+    <ul id="shows"></ul>
+  </aside>
+  <main class="content">
+    <header class="top">
+      <h1 id="show-title">Friday at the Grange</h1>
+      <p class="sub">Drag nothing. Just keep the list honest.</p>
+    </header>
+    <section class="songs">
+      <div class="table-scroll"><table class="song-table">
+        <thead><tr><th>#</th><th>Song</th><th>Key</th><th>BPM</th><th>Length</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="songs"></tbody>
+      </table></div>
+    </section>
+    <section id="editor-slot"></section>
+  </main>
+</div>
+<div class="save-bar">
+  <span id="status">3 unsaved changes</span>
+  <button id="save" type="button">Save setlist</button>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

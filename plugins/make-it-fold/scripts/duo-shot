@@ -1,0 +1,400 @@
+#!/usr/bin/env python3
+"""duo-shot: run an app through the iPhone Duo's poses and report what broke.
+
+WEB (a site running on your own computer, e.g. a dev server on localhost:5173):
+  duo-shot web --url http://localhost:5173 [--path / --path /settings] [--scenario duo/scenario.json]
+               [--poses default|all|<a,b,c>] [--label before|after] [--out duo/shots]
+  The page is loaded THROUGH a local proxy that slips in a small reporter script, so the app's
+  code is not touched. In every pose the reporter measures the page from inside (size, safe
+  areas, sideways scroll, controls under the side bar or the home indicator, inputs that make
+  Safari zoom) and checks the page was not reloaded by the fold.
+
+NATIVE (an iPhone/iPad app):
+  duo-shot native --bundle <bundle id> [--app <path to .app>] [--poses ...] [--label ...] [--out ...]
+  Installs (if --app), launches, and screenshots every pose. Native layout is judged from the
+  screenshots plus the app's own UI tests; duo-shot only checks the app is still running.
+
+Poses: default = cover-portrait, cover-landscape, cover-landscape-flipped, inner-portrait,
+inner-landscape. all = default + book, laptop.
+
+Scenario file (optional, JSON): {"paths": ["/", "/new"], "steps": {"/new": [
+  {"type": ["#title", "Half-typed note"]}, {"pose": "cover-portrait"},
+  {"expect_value": ["#title", "Half-typed note"]}, {"tap": "button[type=submit]"},
+  {"expect_visible": "#save"}, {"expect_text": "Saved"}]}}
+Never put real passwords in a scenario. Never point a scenario at live data (see the
+sandbox recipe): duo-shot refuses a URL that is not on this computer unless --allow-remote
+(for a read-only page; cookies and logins are never passed along to it).
+
+Output: <out>/<timestamp>-<label>/ with summary.json, report.md, contact.html, full-size
+screenshots (App Store sizes) and small copies in thumbs/ for a quick look.
+Exit code: 0 = no issues found, 1 = issues found, 2 = could not run.
+"""
+import argparse
+import fcntl
+import html
+import importlib.machinery
+import importlib.util
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.parse
+from datetime import datetime
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+DUO_SIM = str(HERE / "duo-sim")
+_loader = importlib.machinery.SourceFileLoader("duo_listen", str(HERE / "duo-listen"))
+_spec = importlib.util.spec_from_loader("duo_listen", _loader)
+listen = importlib.util.module_from_spec(_spec)
+_loader.exec_module(listen)
+
+DEFAULT_POSES = ["cover-portrait", "cover-landscape", "cover-landscape-flipped", "inner-portrait", "inner-landscape"]
+ALL_POSES = DEFAULT_POSES + ["book", "laptop"]
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+class ShotError(Exception):
+    pass
+
+
+def sim(*args, check=True):
+    r = subprocess.run([DUO_SIM, *args], capture_output=True, text=True)
+    if check and r.returncode != 0:
+        raise ShotError(f"duo-sim {' '.join(args)}: {(r.stderr or r.stdout).strip()}")
+    return r.stdout.strip()
+
+
+def sim_json(*args):
+    return json.loads(sim(*args))
+
+
+def hold_run_lock(wait=900):
+    """One Duo check at a time: hold a lock for the whole run, so another session cannot fold
+    the simulator or reset Safari between a pose and its screenshot. duo-sim honours it."""
+    if os.environ.get("DUO_RUN_HELD") == "1":
+        return None
+    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold"
+    cache.mkdir(parents=True, exist_ok=True)
+    fh = open(cache / "duo-run.lock", "w")
+    deadline, told = time.time() + wait, False
+    while True:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            os.environ["DUO_RUN_HELD"] = "1"
+            return fh
+        except BlockingIOError:
+            if not told:
+                print(f"duo-shot: another session is running a Duo check; waiting up to {wait} s", file=sys.stderr)
+                told = True
+            if time.time() > deadline:
+                raise ShotError("another session's Duo check never finished; try again when it is done")
+            time.sleep(2)
+
+
+def poses_from(arg):
+    if arg in (None, "default"):
+        return DEFAULT_POSES
+    if arg == "all":
+        return ALL_POSES
+    return [p.strip() for p in arg.split(",") if p.strip()]
+
+
+def thumb(src, dst, size=900):
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["sips", "-Z", str(size), str(src), "--out", str(dst)], capture_output=True)
+
+
+def contact_sheet(outdir, rows, title):
+    # Issue text and labels come from the page being checked, so everything is escaped.
+    esc = lambda v: html.escape(str(v))
+    link = lambda v: html.escape(urllib.parse.quote(str(v)))
+    title = esc(title)
+    cards = []
+    for r in rows:
+        issues = r.get("issues") or []
+        badge = "ok" if not issues else f"{len(issues)} issue{'s' if len(issues) != 1 else ''}"
+        cls = "ok" if not issues else "bad"
+        detail = "".join(f"<li>{esc(i['kind'])}: {esc(i['detail'])}</li>" for i in issues)
+        size = esc(r.get("size", ""))
+        cards.append(f'<figure><a href="{link(r["shot"])}"><img src="{link(r["thumb"])}" loading="lazy"></a>'
+                     f'<figcaption><b>{esc(r["label"])}</b> <span class="{cls}">{badge}</span><br>{size}'
+                     f'<ul>{detail}</ul></figcaption></figure>')
+    page = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title><style>
+:root{{color-scheme:light dark;--bg:#fff;--fg:#111;--card:#f4f4f5;--ok:#137333;--bad:#b3261e}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#111;--fg:#eee;--card:#1d1d20;--ok:#7ad38f;--bad:#ff8a80}}}}
+body{{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.4 -apple-system,system-ui,sans-serif}}
+main{{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}}
+figure{{margin:0;background:var(--card);border-radius:10px;padding:8px}} img{{width:100%;height:auto;border-radius:6px}}
+.ok{{color:var(--ok)}} .bad{{color:var(--bad)}} ul{{margin:4px 0 0;padding-left:18px}}
+</style></head><body><h1>{title}</h1><main>{''.join(cards)}</main></body></html>"""
+    (outdir / "contact.html").write_text(page)
+
+
+class WebRun:
+    kind = " Safari"
+
+    def __init__(self, a):
+        self.a = a
+        u = urllib.parse.urlsplit(a.url)
+        if u.hostname not in LOCAL_HOSTS and not a.allow_remote:
+            raise ShotError(f"{a.url} is not on this computer. Duo checks run against a local copy "
+                            "(see the sandbox recipe). Pass --allow-remote only for a read-only page.")
+        self.base = f"{u.scheme}://{u.netloc}"
+        self.port = a.port
+        self.scenario = json.loads(Path(a.scenario).read_text()) if a.scenario else {}
+        self.paths = a.path or self.scenario.get("paths") or [u.path or "/"]
+        for p in self.paths:
+            # A path like "@example.com/" would turn http://localhost:8787 into another site.
+            if not isinstance(p, str) or not p.startswith("/") or p.startswith("//"):
+                raise ShotError(f"path {p!r} must start with a single '/' (it is added to http://localhost:<port>)")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.out = Path(a.out) / f"{stamp}-{a.label}"
+        (self.out / "shots").mkdir(parents=True, exist_ok=True)
+        self.log = self.out / "reports.jsonl"
+        self.rows, self.findings = [], []
+
+    def start(self):
+        self.srv, self.hub = listen.start(self.port, proxy=self.base, log=str(self.log),
+                                          allow_remote=self.a.allow_remote)
+        self.port = self.srv.port
+        sim("ensure")
+        sim("reset-safari")
+
+    def load(self, path):
+        t0 = time.time()
+        url = f"http://localhost:{self.port}{path}"
+        if urllib.parse.urlsplit(url).hostname != "localhost":
+            raise ShotError(f"path {path!r} would leave this computer; refusing to open it")
+        sim("open-url", url)
+        r = self.hub.wait_report(lambda r: r.get("reason") in ("load", "pageshow-cached"), timeout=30, since=t0)
+        if not r:
+            raise ShotError(f"{path} never reported in. Is the app running at {self.base}, and does the page load in Safari?")
+        time.sleep(1.0)
+        return r
+
+    def fresh(self, settle=True):
+        """Ask the page what it sees. Safari moves the side bar and toolbars a beat after a
+        fold or turn, so keep asking until two readings in a row agree (up to about 6 s)."""
+        if settle:
+            # Wait until the page has stopped reporting resizes for 2 s (at most 10 s).
+            deadline, quiet = time.time() + 10, 2.0
+            while time.time() < deadline:
+                last_t = max((r.get("_t", 0) for r in self.hub.reports
+                              if self.hub.target is None or r.get("marker") == self.hub.target), default=0)
+                if time.time() - last_t >= quiet:
+                    break
+                time.sleep(0.3)
+        rep = self.hub.ask("report", timeout=10)
+        if not settle:
+            return rep
+        key = lambda r: (r.get("innerWidth"), r.get("innerHeight"), json.dumps(r.get("inset"), sort_keys=True))
+        for _ in range(8):
+            time.sleep(0.8)
+            nxt = self.hub.ask("report", timeout=10)
+            if key(nxt) == key(rep):
+                return nxt
+            rep = nxt
+        return rep
+
+    def calibrate(self):
+        """One tap on a transparent pane over the page: maps page pixels to screen points."""
+        st = sim_json("state")
+        w, h = st["sizePoints"]
+        self.hub.ask("calibrate")
+        time.sleep(0.3)
+        sx, sy = w / 2, h / 2
+        sim("tap", f"{sx:.1f}", f"{sy:.1f}")
+        for _ in range(20):
+            c = self.hub.ask("calibration").get("calib")
+            if c:
+                return sx - c["clientX"], sy - c["clientY"]
+            time.sleep(0.2)
+        raise ShotError("calibration tap never reached the page (taps may be landing on the other screen)")
+
+    def tap(self, selector):
+        r = self.hub.ask("rect", selector=selector, scroll=True)
+        if not r.get("found"):
+            raise ShotError(f"tap: no element matches {selector!r}")
+        time.sleep(0.4)
+        r = self.hub.ask("rect", selector=selector)
+        if not r.get("inViewport"):
+            raise ShotError(f"tap: {selector!r} is not on screen")
+        dx, dy = self.calibrate()
+        sim("tap", f"{r['cx'] + dx:.1f}", f"{r['cy'] + dy:.1f}")
+        time.sleep(0.8)
+        return r
+
+    def shoot(self, label):
+        name = label.replace("/", "_").replace(" ", "_")
+        full = self.out / "shots" / f"{name}.png"
+        sim("shot", str(full))
+        thumb(full, self.out / "thumbs" / f"{name}.png")
+        return f"shots/{name}.png", f"thumbs/{name}.png"
+
+    def record(self, path, pose, rep, marker, extra=None):
+        issues = list(rep.get("issues") or [])
+        if rep.get("marker") != marker:
+            issues.append({"kind": "page-reloaded", "detail": "the fold reloaded the page; anything typed or scrolled was lost"})
+        if extra:
+            issues.extend(extra)
+        shot, th = self.shoot(f"{path}-{pose}")
+        ins = rep.get("inset", {})
+        row = {"label": f"{path} · {pose}", "path": path, "pose": pose, "shot": shot, "thumb": th,
+               "size": f"{rep['innerWidth']} x {rep['innerHeight']} CSS px, safe areas T{ins.get('top')} R{ins.get('right')} B{ins.get('bottom')} L{ins.get('left')}",
+               "measure": {k: rep.get(k) for k in ("innerWidth", "innerHeight", "svh", "dvh", "lvh", "inset", "visualViewport")},
+               "issues": issues}
+        self.rows.append(row)
+        return row
+
+    def run_steps(self, path, marker):
+        steps = (self.scenario.get("steps") or {}).get(path, [])
+        for i, s in enumerate(steps, 1):
+            (op, arg), = s.items()
+            if op == "pose":
+                sim("pose", arg)
+                time.sleep(0.6)
+                rep = self.fresh()
+                self.record(path, f"step{i}-{arg}", rep, marker)
+            elif op == "tap":
+                self.tap(arg)
+            elif op == "type":
+                res = self.hub.ask("setValue", selector=arg[0], text=arg[1])
+                if not res.get("found"):
+                    self.fail(path, f"step {i}: no field matches {arg[0]!r}")
+            elif op == "wait":
+                time.sleep(float(arg))
+            elif op == "expect_visible":
+                r = self.hub.ask("rect", selector=arg, scroll=True)
+                time.sleep(0.3)
+                r = self.hub.ask("rect", selector=arg)
+                if not r.get("found") or not r.get("visible") or not r.get("inViewport") or r.get("covered"):
+                    why = "missing" if not r.get("found") else "covered by " + str(r.get("coveredBy")) if r.get("covered") else "not visible on screen"
+                    self.fail(path, f"step {i}: {arg} is {why}")
+            elif op == "expect_value":
+                r = self.hub.ask("value", selector=arg[0])
+                if r.get("value") != arg[1]:
+                    self.fail(path, f"step {i}: {arg[0]} holds {r.get('value')!r}, expected {arg[1]!r} (lost on a fold?)")
+            elif op == "expect_text":
+                if not self.hub.ask("text", text=arg).get("found"):
+                    self.fail(path, f"step {i}: text {arg!r} not on the page")
+            else:
+                self.fail(path, f"step {i}: unknown step {op!r}")
+
+    def fail(self, path, detail):
+        self.findings.append({"path": path, "kind": "scenario", "detail": detail})
+
+    def go(self):
+        self.start()
+        poses = poses_from(self.a.poses)
+        for path in self.paths:
+            # Load first: right after a Safari reset the home screen is in front, and it never rotates.
+            self.hub.target = None
+            first = self.load(path)
+            marker = first["marker"]
+            self.hub.target = marker
+            for pose in poses:
+                try:
+                    sim("pose", pose)
+                except ShotError as e:
+                    self.rows.append({"label": f"{path} · {pose}", "path": path, "pose": pose, "shot": "", "thumb": "",
+                                      "size": "not reached", "issues": [{"kind": "pose-unavailable", "detail": str(e).splitlines()[0][:200]}]})
+                    continue
+                time.sleep(0.6)
+                rep = self.fresh()
+                self.record(path, pose, rep, marker)
+            self.run_steps(path, marker)
+        return self.finish(f"Duo check: {self.base} ({self.a.label})")
+
+    def finish(self, title):
+        total = sum(len(r["issues"]) for r in self.rows) + len(self.findings)
+        summary = {"title": title, "when": datetime.now().isoformat(timespec="seconds"),
+                   "issue_count": total, "rows": self.rows, "scenario_failures": self.findings,
+                   "tier": f"Duo simulator ({sim('runtime', check=False) or 'iOS version unknown'}{self.kind})"}
+        (self.out / "summary.json").write_text(json.dumps(summary, indent=2))
+        contact_sheet(self.out, self.rows, title)
+        lines = [f"# {title}", "", f"Tier: Duo simulator. Issues found: {total}.", ""]
+        for r in self.rows:
+            lines.append(f"- **{r['label']}** ({r['size']}): " + ("ok" if not r["issues"] else
+                         "; ".join(f"{i['kind']}: {i['detail']}" for i in r["issues"])))
+        for f in self.findings:
+            lines.append(f"- **scenario {f['path']}**: {f['detail']}")
+        lines += ["", f"Screenshots: {self.out / 'contact.html'}"]
+        (self.out / "report.md").write_text("\n".join(lines) + "\n")
+        print("\n".join(lines))
+        return 0 if total == 0 else 1
+
+
+class NativeRun(WebRun):
+    kind = ""
+
+    def __init__(self, a):
+        self.a = a
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.out = Path(a.out) / f"{stamp}-{a.label}"
+        (self.out / "shots").mkdir(parents=True, exist_ok=True)
+        self.rows, self.findings = [], []
+
+    def running(self, udid):
+        r = subprocess.run(["xcrun", "simctl", "spawn", udid, "launchctl", "list"], capture_output=True, text=True)
+        return self.a.bundle in r.stdout
+
+    def go(self):
+        udid = sim("ensure")
+        if self.a.app:
+            subprocess.run(["xcrun", "simctl", "install", udid, self.a.app], check=True)
+        poses = poses_from(self.a.poses)
+        sim("pose", poses[0])
+        subprocess.run(["xcrun", "simctl", "terminate", udid, self.a.bundle], capture_output=True)
+        r = subprocess.run(["xcrun", "simctl", "launch", udid, self.a.bundle], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise ShotError(f"could not launch {self.a.bundle}: {r.stderr.strip()}")
+        time.sleep(3)
+        for pose in poses:
+            try:
+                st = sim_json("pose", pose)
+            except ShotError as e:
+                self.rows.append({"label": pose, "pose": pose, "shot": "", "thumb": "", "size": "not reached",
+                                  "issues": [{"kind": "pose-unavailable", "detail": str(e).splitlines()[0][:200]}]})
+                continue
+            time.sleep(1.2)
+            shot, th = self.shoot(pose)
+            issues = [] if self.running(udid) else [{"kind": "app-not-running", "detail": f"the app was gone after {pose} (crash?)"}]
+            self.rows.append({"label": pose, "pose": pose, "shot": shot, "thumb": th,
+                              "size": f"{st['activeScreen']} screen, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
+                              "issues": issues})
+        return self.finish(f"Duo check: {self.a.bundle} ({self.a.label}) - review every screenshot")
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = p.add_subparsers(dest="mode", required=True)
+    for m in ("web", "native"):
+        s = sub.add_parser(m)
+        s.add_argument("--poses")
+        s.add_argument("--label", default="check")
+        s.add_argument("--out", default="duo/shots")
+        if m == "web":
+            s.add_argument("--url", required=True)
+            s.add_argument("--path", action="append")
+            s.add_argument("--scenario")
+            s.add_argument("--port", type=int, default=8787)
+            s.add_argument("--allow-remote", action="store_true")
+        else:
+            s.add_argument("--bundle", required=True)
+            s.add_argument("--app")
+    a = p.parse_args()
+    try:
+        run = WebRun(a) if a.mode == "web" else NativeRun(a)
+        lock = hold_run_lock()  # kept open until this process ends
+        sys.exit(run.go())
+    except Exception as e:  # anything unexpected is "could not run" (2), never "issues found" (1)
+        what = "" if isinstance(e, (ShotError, TimeoutError, ValueError)) else f"{type(e).__name__}: "
+        print(f"duo-shot: {what}{e}", file=sys.stderr)
+        sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()

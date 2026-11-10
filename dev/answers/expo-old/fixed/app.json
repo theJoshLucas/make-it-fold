@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Pocket Chores",
+    "slug": "pocket-chores",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "dev.makeitfold.practice.expoold"
+    }
+  }
+}

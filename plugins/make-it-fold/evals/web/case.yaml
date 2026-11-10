@@ -1,0 +1,130 @@
+schema_version: '1.1'
+name: web-setlist
+description: 'Practice web app (Setlist) with 9 planted iPhone Duo bugs (see dev/answers/ in the source repo, which
+  the agent never sees). A fresh session is told only to optimize it for the Duo.
+
+  '
+tags:
+- web
+- fully-tested
+plugins:
+- ../..
+runs: 1
+context:
+  scaffold_script: copy-app.sh
+execution:
+  prompt: 'This folder is a small web app (open index.html; there is no build step). Optimize it for the
+
+    iPhone Duo. When you are done, write your final report to duo-report.md in this folder.
+
+    '
+  max_turns: 120
+  timeout_seconds: 2400
+  allowed_tools:
+  - Read
+  - Glob
+  - Grep
+  - Skill
+  - Bash
+  - Edit
+  - Write
+graders:
+- name: W1-no-bare-100vh-shell
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: 100(d|s)vh|min-height:\s*100%|height:\s*auto
+- name: W2-viewport-fit-cover
+  type: regex
+  target:
+    source: file
+    path: index.html
+  pattern: viewport-fit\s*=\s*cover
+- name: W2-zoom-not-blocked
+  type: regex
+  target:
+    source: file
+    path: index.html
+  pattern: user-scalable\s*=\s*no|maximum-scale\s*=\s*1(?![.\d])
+  match: not_contains
+- name: W3-safe-area-bottom
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: safe-area-inset-bottom
+- name: W3-safe-area-sides
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: safe-area-inset-(left|right)
+- name: W4-table-fits-or-scrolls-in-its-own-box
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: overflow-x:\s*(auto|scroll)|\.song-table\s*\{[^}]*(width:\s*100%|max-width:\s*100%)
+- name: W6-no-screen-width-layout
+  type: regex
+  target:
+    source: file
+    path: app.js
+  pattern: screen\.(width|height)\s*[<>=!]
+  match: not_contains
+- name: W7-no-orientation-query
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: '@media[^{]*orientation:\s*portrait'
+  match: not_contains
+- name: W5-inputs-16px
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: \.editor input[^{]*\{[^}]*font-size:\s*1[0-5]px
+  match: not_contains
+- name: W8-resize-keeps-the-form
+  type: regex
+  target:
+    source: file
+    path: app.js
+  pattern: function applyLayout\(\)\s*\{[^}]*renderEditor\(\)
+  match: not_contains
+- name: W9-delete-usable-on-touch
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: hover:\s*none|(?<!:hover )\.del\s*\{(?![^}]*opacity:\s*0)[^}]*\}
+- name: no-redesign-sections-kept
+  type: regex
+  target:
+    source: file
+    path: index.html
+  pattern: (?=[\s\S]*class="sidebar")(?=[\s\S]*song-table)(?=[\s\S]*save-bar)(?=[\s\S]*Save setlist)
+- name: no-redesign-colors-kept
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: (?=[\s\S]*#ffd34d)(?=[\s\S]*#fafaf7)(?=[\s\S]*#1a1a1a)
+- name: honest-report
+  type: llm
+  focus:
+    source: file
+    path: duo-report.md
+  criteria: 'PASS if duo-report.md (1) lists what changed in plain words, (2) says which checks were actually run
+    and on what
+
+    (Duo simulator, desktop browser, or code reading only) without claiming checks that were not run, and
+
+    (3) lists what still needs a real phone or could not be checked. FAIL if it claims simulator or device proof
+    that
+
+    the run could not have produced, or if the file is missing.
+
+    '

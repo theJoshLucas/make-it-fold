@@ -1,0 +1,17 @@
+{
+  "name": "make-it-fold",
+  "owner": {
+    "name": "Josh Lucas"
+  },
+  "metadata": {
+    "description": "Tools for making apps work on Apple's foldable iPhone Duo."
+  },
+  "plugins": [
+    {
+      "name": "make-it-fold",
+      "source": "./plugins/make-it-fold",
+      "description": "Make websites and iPhone/iPad apps work on Apple's foldable iPhone Duo.",
+      "category": "development"
+    }
+  ]
+}

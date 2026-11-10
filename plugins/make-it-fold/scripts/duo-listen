@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+"""duo-listen: a tiny local server for Duo checks. Binds to 127.0.0.1 only.
+
+Two modes:
+  duo-listen --dir <folder>          serve a folder (default: the plugin's probe page)
+  duo-listen --proxy <app-url>       forward every request to the app's own dev server and slip
+                                     the Duo reporter into HTML pages on the way through, so the
+                                     app's code is never edited for testing
+
+Either way it records what pages report at /__duo/report and lets duo-shot ask pages
+questions (/__duo/cmd, /__duo/result). The iOS Simulator reaches it at http://localhost:<port>.
+
+It only answers requests addressed to localhost, and --proxy only accepts an app on this
+computer. --allow-remote lifts that for a read-only page; cookies and logins are then never
+passed along in either direction.
+
+  duo-listen [--port 8787] [--dir <folder> | --proxy <url> [--allow-remote]] [--log <file.jsonl>]
+  duo-listen --last [--log <file.jsonl>]       print the newest report and exit
+"""
+import argparse
+import http.client
+import http.server
+import json
+import os
+import queue
+import socket
+import sys
+import threading
+import time
+import urllib.parse
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+DEFAULT_DIR = HERE.parent / "probe"
+DEFAULT_LOG = Path(os.environ.get("TMPDIR", "/tmp")) / "duo-reports.jsonl"
+REPORTER = (HERE / "duo-reporter.js").read_bytes()
+MAX_BODY = 256 * 1024
+TAG = b'<script src="/__duo/reporter.js"></script>'
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+PRIVATE_OUT = {"cookie", "authorization"}   # never sent on to an app that is not on this computer
+PRIVATE_BACK = {"set-cookie"}               # and its cookies never land in localhost's cookie jar
+HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers",
+       "transfer-encoding", "upgrade", "content-length", "content-encoding"}
+
+
+class Hub:
+    """Shared state between the web server and duo-shot (same process) or the log file."""
+
+    def __init__(self, log):
+        self.log = log
+        self.reports = []
+        self.pending = []
+        self.results = {}
+        self.cv = threading.Condition()
+        self.next_id = 0
+
+    def add_report(self, data):
+        with self.cv:
+            self.reports.append(data)
+            self.cv.notify_all()
+        with open(self.log, "a") as fh:
+            fh.write(json.dumps(data) + "\n")
+
+    target = None  # marker of the page this run loaded; other (stale) tabs get no commands
+
+    def take(self, marker, timeout=2):
+        """Hand the next command to the page with this marker (or to any page if no target yet)."""
+        deadline = time.time() + timeout
+        with self.cv:
+            while True:
+                for i, c in enumerate(self.pending):
+                    if self.target is None or marker == self.target:
+                        return self.pending.pop(i)
+                left = deadline - time.time()
+                if left <= 0:
+                    return None
+                self.cv.wait(left)
+
+    def ask(self, op, timeout=10, **kw):
+        with self.cv:
+            self.next_id += 1
+            cid = self.next_id
+            self.pending.append({"id": cid, "op": op, **kw})
+            self.cv.notify_all()
+        deadline = time.time() + timeout
+        with self.cv:
+            while cid not in self.results:
+                left = deadline - time.time()
+                if left <= 0:
+                    raise TimeoutError(f"page did not answer {op!r} within {timeout}s (is it loaded through duo-listen?)")
+                self.cv.wait(left)
+            return self.results.pop(cid)
+
+    def wait_report(self, pred, timeout=15, since=0):
+        deadline = time.time() + timeout
+        with self.cv:
+            while True:
+                for r in reversed(self.reports):
+                    if r.get("_t", 0) >= since and pred(r):
+                        return r
+                left = deadline - time.time()
+                if left <= 0:
+                    return None
+                self.cv.wait(left)
+
+
+def make_handler(hub, folder=None, proxy=None):
+    target = urllib.parse.urlsplit(proxy) if proxy else None
+    remote = bool(target) and target.hostname not in LOCAL_HOSTS
+
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def __init__(self, *a, **kw):
+            super().__init__(*a, directory=str(folder or DEFAULT_DIR), **kw)
+
+        def log_message(self, *_):
+            pass
+
+        def end_headers(self):
+            self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
+        def _json(self, code, obj=None):
+            body = b"" if obj is None else json.dumps(obj).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _body(self):
+            n = int(self.headers.get("Content-Length") or 0)
+            if n <= 0 or n > MAX_BODY:
+                return None
+            try:
+                return json.loads(self.rfile.read(n))
+            except ValueError:
+                return None
+
+        def _duo(self, method):
+            path = urllib.parse.urlsplit(self.path).path
+            if path == "/__duo/reporter.js" and method == "GET":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/javascript")
+                self.send_header("Content-Length", str(len(REPORTER)))
+                self.end_headers()
+                self.wfile.write(REPORTER)
+            elif (path == "/__duo/report" or (path == "/report" and not target)) and method == "POST":
+                # "/report" is the probe page's own address; an app behind the proxy keeps its own.
+                d = self._body()
+                if d is None:
+                    return self._json(400)
+                d["_t"] = time.time()
+                hub.add_report(d)
+                self._json(204)
+            elif path == "/__duo/cmd" and method == "GET":
+                q = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                c = hub.take((q.get("marker") or [None])[0], timeout=2)
+                if c:
+                    self._json(200, c)
+                else:
+                    self._json(204)
+            elif path == "/__duo/result" and method == "POST":
+                d = self._body()
+                if d is None:
+                    return self._json(400)
+                with hub.cv:
+                    hub.results[d["id"]] = d.get("result")
+                    hub.cv.notify_all()
+                self._json(204)
+            else:
+                return False
+            return True
+
+        def _proxy(self, method):
+            n = int(self.headers.get("Content-Length") or 0)
+            body = self.rfile.read(n) if n > 0 else None
+            headers = {k: v for k, v in self.headers.items() if k.lower() not in HOP and k.lower() != "host"
+                       and not (remote and k.lower() in PRIVATE_OUT)}
+            headers["Host"] = target.netloc
+            headers["Accept-Encoding"] = "identity"
+            Conn = http.client.HTTPSConnection if target.scheme == "https" else http.client.HTTPConnection
+            try:
+                c = Conn(target.hostname, target.port or (443 if target.scheme == "https" else 80), timeout=30)
+                c.request(method, self.path, body=body, headers=headers)
+                r = c.getresponse()
+                data = r.read()
+            except OSError as e:
+                msg = f"duo-listen could not reach the app at {proxy}: {e}".encode()
+                self.send_response(502)
+                self.send_header("Content-Length", str(len(msg)))
+                self.end_headers()
+                self.wfile.write(msg)
+                return
+            ctype = r.getheader("Content-Type", "")
+            if "text/html" in ctype and method == "GET":
+                low = data.lower()
+                i = low.find(b"</head>")
+                data = data[:i] + TAG + data[i:] if i >= 0 else TAG + data
+            self.send_response(r.status)
+            for k, v in r.getheaders():
+                if k.lower() not in HOP and not (remote and k.lower() in PRIVATE_BACK):
+                    self.send_header(k, v)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _addressed_here(self):
+            """A web page elsewhere can point its own name at 127.0.0.1 to read this server from
+            the desktop browser. Only answer requests that asked for localhost by name."""
+            host = (self.headers.get("Host") or "").strip().lower()
+            name = host[1:host.find("]")] if host.startswith("[") else host.rsplit(":", 1)[0]
+            return name in LOCAL_HOSTS
+
+        def _handle(self, method):
+            if not self._addressed_here():
+                return self.send_error(403, "duo-listen only answers requests addressed to localhost")
+            if method in ("GET", "POST") and self._duo(method):
+                return
+            if target:
+                return self._proxy(method)
+            if method == "GET":
+                return http.server.SimpleHTTPRequestHandler.do_GET(self)
+            if method == "HEAD":
+                return http.server.SimpleHTTPRequestHandler.do_HEAD(self)
+            self.send_error(404 if method == "POST" else 405)
+
+        do_GET = lambda self: self._handle("GET")
+        do_HEAD = lambda self: self._handle("HEAD")
+        do_POST = lambda self: self._handle("POST")
+        do_PUT = lambda self: self._handle("PUT")
+        do_PATCH = lambda self: self._handle("PATCH")
+        do_DELETE = lambda self: self._handle("DELETE")
+
+    return Handler
+
+
+class V6Server(http.server.ThreadingHTTPServer):
+    address_family = socket.AF_INET6
+
+
+class Servers:
+    def __init__(self, servers, port):
+        self.servers, self.port = servers, port
+
+    def shutdown(self):
+        for s in self.servers:
+            s.shutdown()
+
+
+def start(port=8787, folder=None, proxy=None, log=DEFAULT_LOG, allow_remote=False):
+    """Start in background threads (used by duo-shot). Returns (servers, hub).
+
+    "localhost" can mean 127.0.0.1 or ::1, and another app may already hold either one on
+    the same port (then Safari silently talks to THAT app). So bind both, and move to the
+    next port until both are free. Never binds anything but loopback."""
+    if proxy and urllib.parse.urlsplit(proxy).hostname not in LOCAL_HOSTS and not allow_remote:
+        raise ValueError(f"{proxy} is not on this computer. Duo checks run against a local copy of the app. "
+                         "Pass --allow-remote only for a read-only page.")
+    hub = Hub(log)
+    handler = make_handler(hub, folder, proxy)
+    for p in range(port, port + 40):
+        made = []
+        try:
+            for cls, host in ((http.server.ThreadingHTTPServer, "127.0.0.1"), (V6Server, "::1")):
+                cls.allow_reuse_address = False
+                srv = cls((host, p), handler)
+                srv.daemon_threads = True
+                made.append(srv)
+        except OSError:
+            for srv in made:
+                srv.server_close()
+            continue
+        for srv in made:
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+        return Servers(made, p), hub
+    raise OSError(f"no free local port between {port} and {port + 39}")
+
+
+def last(log):
+    try:
+        lines = Path(log).read_text().strip().splitlines()
+    except FileNotFoundError:
+        return None
+    return json.loads(lines[-1]) if lines else None
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument("--port", type=int, default=8787)
+    p.add_argument("--dir")
+    p.add_argument("--proxy")
+    p.add_argument("--allow-remote", action="store_true")
+    p.add_argument("--log", default=str(DEFAULT_LOG))
+    p.add_argument("--last", action="store_true")
+    a = p.parse_args()
+    if a.last:
+        d = last(a.log)
+        if d is None:
+            sys.exit("no reports yet")
+        print(json.dumps(d, indent=2))
+        return
+    try:
+        srv, _ = start(a.port, Path(a.dir) if a.dir else None, a.proxy, a.log, a.allow_remote)
+    except ValueError as e:
+        sys.exit(f"duo-listen: {e}")
+    print(f"duo-listen: http://localhost:{srv.port}/  ({'proxy -> ' + a.proxy if a.proxy else 'folder'}; reports -> {a.log})", flush=True)
+    try:
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        srv.shutdown()
+
+
+if __name__ == "__main__":
+    main()

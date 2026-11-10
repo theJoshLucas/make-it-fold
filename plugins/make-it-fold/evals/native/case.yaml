@@ -1,0 +1,143 @@
+schema_version: '1.1'
+name: native-gig-log
+description: 'Practice iPhone app (Gig Log, SwiftUI Xcode project) with 8 planted iPhone Duo bugs (see answer-key.md,
+  which the agent never sees). A fresh session is told only to optimize it for the Duo.
+
+  '
+tags:
+- native
+- fully-tested
+plugins:
+- ../..
+runs: 1
+context:
+  scaffold_script: copy-app.sh
+execution:
+  prompt: 'This folder is an iPhone app (Xcode project). Optimize it for the iPhone Duo. When you are done,
+
+    write your final report to duo-report.md in this folder.
+
+    '
+  max_turns: 150
+  timeout_seconds: 3000
+  allowed_tools:
+  - Read
+  - Glob
+  - Grep
+  - Skill
+  - Bash
+  - Edit
+  - Write
+graders:
+- name: N1-no-uiscreen-main
+  type: regex
+  target:
+    source: file
+    path: GigLog/ContentView.swift
+  pattern: ^[^/\n]*UIScreen\.main
+  flags: m
+  match: not_contains
+- name: N1-width-from-own-space
+  type: regex
+  target:
+    source: file
+    path: GigLog/ContentView.swift
+  pattern: GeometryReader|horizontalSizeClass|ViewThatFits|containerRelativeFrame|onGeometryChange|\.frame\(\s*maxWidth|NavigationSplitView
+- name: N3-rename-outside-principal
+  type: regex
+  target:
+    source: file
+    path: GigLog/DetailView.swift
+  pattern: ToolbarItem\(placement:\s*\.(topBarTrailing|navigationBarTrailing|topBarLeading|navigationBarLeading|primaryAction|secondaryAction|bottomBar)|\.contextMenu|Menu\s*\{
+- name: N4-draft-not-owned-per-layout
+  type: regex
+  target:
+    source: file
+    path: GigLog/DetailView.swift
+  pattern: struct (NarrowDetail|WideDetail)[^{]*\{[^}]*@State[^\n]*draft
+  match: not_contains
+- name: N5-no-ignores-safe-area-on-content
+  type: regex
+  target:
+    source: file
+    path: GigLog/DetailView.swift
+  pattern: ^\s*\.ignoresSafeArea\(
+  flags: m
+  match: not_contains
+- name: N6-requires-full-screen-still-present
+  type: regex
+  target:
+    source: file
+    path: GigLog.xcodeproj/project.pbxproj
+  pattern: UIRequiresFullScreen\s*=\s*YES
+- name: N6-no-ignored-starting-with-version
+  type: regex
+  target:
+    source: file
+    path: GigLog.xcodeproj/project.pbxproj
+  pattern: UIRequiresFullScreenIgnoredStartingWithVersion
+  match: not_contains
+- name: N7-launch-screen-key
+  type: regex
+  target:
+    source: file
+    path: GigLog.xcodeproj/project.pbxproj
+  pattern: UILaunchScreen
+- name: N8-resign-first-responder-deferred
+  type: regex
+  target:
+    source: file
+    path: GigLog/NoteField.swift
+  pattern: DispatchQueue\.main\.async
+- name: N8-resign-not-called-directly
+  type: regex
+  target:
+    source: file
+    path: GigLog/NoteField.swift
+  pattern: maxLength\s*\{\s*uiView\.resignFirstResponder
+  match: not_contains
+- name: no-redesign-list-screen
+  type: regex
+  target:
+    source: file
+    path: GigLog/ContentView.swift
+  pattern: '(?=[\s\S]*Gig Log)(?=[\s\S]*Add gig)(?=[\s\S]*Color\.indigo)(?=[\s\S]*systemName: "plus")'
+- name: no-redesign-detail-screen
+  type: regex
+  target:
+    source: file
+    path: GigLog/DetailView.swift
+  pattern: (?=[\s\S]*Rename gig)(?=[\s\S]*Save note)(?=[\s\S]*Load-in)(?=[\s\S]*Notes)
+- name: N3-N4-behaviour
+  type: llm
+  focus:
+    source: file
+    path: GigLog/DetailView.swift
+  weight: 2
+  criteria: "PASS only if ALL hold in this DetailView.swift:\n(N3) the gig rename control is reachable without the\
+    \ principal toolbar item's custom view (for example an icon\n    toolbar item, a menu, or an in-content button\
+    \ also opens the rename alert), because custom views in a\n    principal slot are not shown in the Duo's vertical\
+    \ bar;\n(N4) the half-typed note text is not kept in separate @State inside each of WideDetail and NarrowDetail:\
+    \ the\n    draft is owned above the wide/narrow branch (here or in a shared store) and passed down, so switching\n\
+    \    layouts keeps it;\n(N5) ignoresSafeArea is not applied to the content stack that holds the Save note button\
+    \ (a background only is fine).\nFAIL if any one is missing.\n"
+- name: honest-report
+  type: llm
+  focus:
+    source: file
+    path: duo-report.md
+  criteria: 'PASS if duo-report.md (1) lists what changed in plain words, (2) says which checks were actually run
+    and on what
+
+    (a build, the Duo simulator, or code reading only) without claiming checks that were not run, (3) tells the
+
+    developer the app declares UIRequiresFullScreen, that it was deliberately left in place (not deleted), and that
+
+    removing it is a step for the developer once the resize checks pass, and (4) lists what still needs a real phone
+
+    or could not be checked. FAIL if it claims simulator or device proof that the run could not have produced, says
+
+    UIRequiresFullScreen was removed or never mentions it, or if the file is missing.
+
+    Also required: the hand-tuned `.padding(.bottom, 92)` on the floating + button is either replaced by safe-area-aware
+    spacing, or kept and named in the report as a deliberate choice for the owner. Either passes.'

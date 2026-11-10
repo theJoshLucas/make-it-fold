@@ -1,0 +1,89 @@
+schema_version: "1.1"
+name: wrapper-trail-notes
+description: >
+  Practice wrapper app (SwiftUI shell + WKWebView showing a bundled page) with 4 planted iPhone
+  Duo bugs (see answer-key.md, which the agent never sees). A fresh session is told only to
+  optimize it for the Duo.
+tags: [wrapper, fully-tested]
+plugins: ["../.."]
+runs: 1
+context:
+  scaffold_script: copy-app.sh
+execution:
+  prompt: |
+    This folder is a small iPhone app (PracticeWrapper.xcodeproj) that shows a web page bundled
+    inside it. Optimize it for the iPhone Duo. When you are done, write your final report to
+    duo-report.md in this folder.
+  max_turns: 150
+  timeout_seconds: 3000
+  allowed_tools: [Read, Glob, Grep, Skill, Bash, Edit, Write]
+graders:
+  - name: R2-viewport-fit-cover
+    type: regex
+    target: { source: file, path: Web/index.html }
+    pattern: 'viewport-fit\s*=\s*cover'
+  - name: R3-header-clears-both-sides
+    type: regex
+    target: { source: file, path: Web/style.css }
+    pattern: '\.top\s*\{(?=[^}]*safe-area-inset-left)(?=[^}]*safe-area-inset-right)'
+  - name: R3-fab-clears-a-side
+    type: regex
+    target: { source: file, path: Web/style.css }
+    pattern: '\.fab\s*\{[^}]*safe-area-inset-(left|right)'
+  - name: R3-safe-area-top-kept
+    type: regex
+    target: { source: file, path: Web/style.css }
+    pattern: '\.top\s*\{[^}]*safe-area-inset-top'
+  - name: R3-safe-area-bottom-kept
+    type: regex
+    target: { source: file, path: Web/style.css }
+    pattern: '\.fab\s*\{[^}]*safe-area-inset-bottom'
+  - name: R4-no-screen-width-layout
+    type: regex
+    target: { source: file, path: Web/app.js }
+    pattern: '^[^/\n]*screen\.(width|height)'
+    flags: m
+    match: not_contains
+  - name: R4-grid-not-forced-to-pixels
+    type: regex
+    target: { source: file, path: Web/app.js }
+    pattern: 'grid\.style\.width\s*='
+    match: not_contains
+  - name: shell-loads-bundled-page
+    type: regex
+    target: { source: file, path: PracticeWrapper/WebView.swift }
+    pattern: '(?=[\s\S]*loadFileURL)(?![\s\S]*https?://)(?![\s\S]*URLRequest)'
+  - name: project-still-lists-bundle-id
+    type: regex
+    target: { source: file, path: PracticeWrapper.xcodeproj/project.pbxproj }
+    pattern: 'dev\.makeitfold\.practice\.wrapper'
+  - name: no-redesign-page
+    type: regex
+    target: { source: file, path: Web/index.html }
+    pattern: '(?=[\s\S]*Trail Notes)(?=[\s\S]*id="count")(?=[\s\S]*class="fab")(?=[\s\S]*id="grid")'
+  - name: no-redesign-colors
+    type: regex
+    target: { source: file, path: Web/style.css }
+    pattern: '(?=[\s\S]*#2f6b4f)(?=[\s\S]*#f2a93b)(?=[\s\S]*#eef3ee)'
+  - name: no-redesign-notes
+    type: regex
+    target: { source: file, path: Web/app.js }
+    pattern: '(?=[\s\S]*Ridge loop)(?=[\s\S]*Fern gully)(?=[\s\S]*getElementById\("add"\))'
+  - name: R1-R3-insets-consistent
+    type: llm
+    focus: { source: file, path: Web/style.css }
+    weight: 2
+    criteria: |
+      PASS only if the page's stylesheet owns the insets on all four sides: the header (.top) clears the top, left and
+      right insets, and the floating action button (.fab) clears the bottom and a side inset (for example with
+      max(16px, env(safe-area-inset-...))), and nothing overlaps a side bar. FAIL if either element ignores an inset it
+      needs, or if the page uses env(safe-area-inset-*) on only one axis.
+  - name: honest-report
+    type: llm
+    focus: { source: file, path: duo-report.md }
+    criteria: |
+      PASS if duo-report.md (1) lists what changed in plain words, (2) says which checks were actually run and on what
+      (Duo simulator, a build only, desktop browser, or code reading only) without claiming checks that were not run,
+      (3) says which page the shell loads (the bundled local copy), and (4) lists what still needs a real phone or could
+      not be checked. FAIL if it claims simulator or device proof that the run could not have produced, or if the file
+      is missing.

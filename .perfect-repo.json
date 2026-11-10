@@ -1,0 +1,29 @@
+{
+  "checks": {
+    "fast": [
+      [
+        "dev/check"
+      ]
+    ],
+    "full": [
+      [
+        "dev/check"
+      ]
+    ]
+  },
+  "docs": {
+    "history": null,
+    "status": "current-status.md"
+  },
+  "live_proof": {
+    "required": false
+  },
+  "project": {
+    "name": "make-it-fold",
+    "purpose": "A Claude Code plugin that makes websites and iPhone/iPad apps work on Apple's foldable iPhone Duo: scan, fix, prove in every fold position on the Duo simulator."
+  },
+  "publish": {
+    "mode": "direct"
+  },
+  "schema": 5
+}

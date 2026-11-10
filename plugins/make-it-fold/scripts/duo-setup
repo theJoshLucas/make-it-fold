@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""duo-setup: check this Mac is ready for Duo jobs, and fix what is safe to fix.
+
+  duo-setup              check only; prints a checklist and the one fix for each miss
+  duo-setup --install    also do the safe fixes: install the pinned, reviewed copy of duoctl
+                         and create the "Duo Kit" simulator
+  duo-setup --json       the checklist as JSON
+
+Big or personal steps are never done silently: macOS updates, installing Xcode, and the
+multi-GB simulator download are printed as exact steps for the person (or the agent, after
+the person says yes).
+"""
+import json
+import os
+import platform
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold"
+PIN = (ROOT / "tools" / "duoctl.pin").read_text().split()
+DUOCTL_SHA, DUOCTL_URL = PIN[0], PIN[1]
+DUO_TYPE = "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo"
+
+
+def sh(args):
+    try:
+        r = subprocess.run(args, capture_output=True, text=True, timeout=120)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return 1, str(e)
+
+
+def ver(s):
+    return tuple(int(x) for x in re.findall(r"\d+", s)[:3]) or (0,)
+
+
+def checks(install):
+    out = []
+
+    def add(name, ok, have, fix=None, level="needed"):
+        out.append({"check": name, "ok": ok, "have": have, "fix": None if ok else fix, "level": level})
+
+    mac = platform.mac_ver()[0] or "not macOS"
+    add("macOS 26.6 or newer (Xcode 27.1+ needs it)", ver(mac) >= (26, 6), mac,
+        "Update macOS: System Settings > General > Software Update (needs your password and a restart).")
+
+    code, txt = sh(["xcodebuild", "-version"])
+    xv = re.search(r"Xcode ([\d.]+)", txt)
+    xv = xv.group(1) if xv else "not installed"
+    add("Xcode 27.1 or newer", ver(xv) >= (27, 1), xv,
+        "Install Xcode 27.1+ from the Mac App Store or developer.apple.com/xcode, open it once, "
+        "then run: sudo xcodebuild -runFirstLaunch")
+
+    duo_rt, ios27 = None, None
+    code, txt = sh(["xcrun", "simctl", "list", "runtimes", "-j"])
+    if code != 0:
+        # simctl itself failed (as opposed to "no Duo runtime"): this session probably runs in a
+        # sandbox that cannot reach the simulator service. Do not tell the person to download
+        # several GB they may already have.
+        add("Simulator service reachable from this session", False, "unreachable: " + txt.strip().splitlines()[-1][:120] if txt.strip() else "unreachable",
+            "This session cannot run `xcrun simctl` (a sandbox, or Xcode never opened). Do NOT assume the simulator is "
+            "missing: run /duo-setup in a normal Claude Code session, or open Xcode once, then check again.")
+        out.append({"check": "_unreachable", "ok": True, "have": "", "fix": None, "level": "optional"})
+    if code == 0:
+        for rt in json.loads(txt).get("runtimes", []):
+            types = [t.get("identifier") for t in rt.get("supportedDeviceTypes", [])]
+            if rt.get("isAvailable") and DUO_TYPE in types:
+                duo_rt = rt["identifier"]
+            if rt.get("isAvailable") and ver(rt.get("version", "")) >= (27, 0) and "iPhone-17-Pro" in " ".join(types):
+                ios27 = rt["identifier"]
+    unreachable = any(c["check"] == "_unreachable" for c in out)
+    out[:] = [c for c in out if c["check"] != "_unreachable"]
+    if unreachable:
+        return out
+    add("iPhone Duo simulator runtime", bool(duo_rt), duo_rt or "missing",
+        "Download it (several GB): xcodebuild -downloadPlatform iOS   (or Xcode > Settings > Components)")
+    add("Regular iPhone simulator on iOS 27 (for 'not worse on normal phones')", bool(ios27), ios27 or "missing",
+        "Download it (several GB): xcodebuild -downloadPlatform iOS", level="recommended")
+
+    dpath = CACHE / "duoctl" / DUOCTL_SHA
+
+    def reviewed(path):
+        """True only for a duoctl folder at exactly the reviewed commit, with no changed files."""
+        if not (path / "skills" / "duoctl" / "scripts" / "duoctl").exists():
+            return False
+        c1, head = sh(["git", "-C", str(path), "rev-parse", "HEAD"])
+        c2, dirty = sh(["git", "-C", str(path), "status", "--porcelain"])
+        return c1 == 0 and head.strip() == DUOCTL_SHA and c2 == 0 and not dirty.strip()
+
+    ok = reviewed(dpath)
+    if not ok and install:
+        # Download beside the final spot and move it in only once it is proven to be the reviewed
+        # commit, so a failed or half-done download can never sit at the trusted path.
+        tmp = dpath.parent / f".{DUOCTL_SHA[:10]}.{os.getpid()}.tmp"
+        dpath.parent.mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+        sh(["git", "clone", "-q", DUOCTL_URL, str(tmp)])
+        sh(["git", "-C", str(tmp), "checkout", "-q", DUOCTL_SHA])
+        if reviewed(tmp):
+            shutil.rmtree(dpath, ignore_errors=True)
+            tmp.rename(dpath)
+            ok = True
+        else:
+            shutil.rmtree(tmp, ignore_errors=True)
+    add("duoctl (fold, rotate, tap) at the reviewed version", ok,
+        f"{DUOCTL_SHA[:10]} in {dpath}" if ok else ("not the reviewed copy" if dpath.exists() else "missing"),
+        "Run: duo-setup --install   (clones duoctl and locks it to the reviewed commit)")
+
+    sim = None
+    if install and duo_rt:
+        code, txt = sh([str(HERE / "duo-sim"), "ensure"])
+        sim = txt.strip().splitlines()[-1] if code == 0 else None
+    else:
+        code, txt = sh([str(HERE / "duo-sim"), "udid"])
+        sim = txt.strip() or None if code == 0 else None
+    add("'Duo Kit' simulator", bool(sim), sim or "not created",
+        "Run: duo-setup --install   (creates and boots a simulator named Duo Kit)")
+
+    add("python3", bool(shutil.which("python3")), shutil.which("python3") or "missing", "Install Xcode's command line tools.")
+    node = shutil.which("node")
+    add("Node.js (only for web apps and Expo)", bool(node), node or "missing",
+        "Install Node.js LTS from nodejs.org if you'll check web or Expo apps.", level="optional")
+    return out
+
+
+def main():
+    if "-h" in sys.argv or "--help" in sys.argv:
+        print(__doc__.strip())
+        return
+    install = "--install" in sys.argv
+    res = checks(install)
+    if "--json" in sys.argv:
+        print(json.dumps(res, indent=2))
+        return
+    ready = all(c["ok"] for c in res if c["level"] == "needed")
+    print("make-it-fold setup check\n")
+    for c in res:
+        mark = "OK " if c["ok"] else ("-- " if c["level"] != "needed" else "NO ")
+        print(f"  {mark} {c['check']}: {c['have']}")
+        if c["fix"]:
+            print(f"       fix: {c['fix']}")
+    print("\nReady for Duo simulator jobs." if ready else
+          "\nNot ready yet. Without Xcode and the Duo runtime, the plugin can still scan and fix code, "
+          "with desktop-browser checks clearly labelled as such.")
+    sys.exit(0 if ready else 1)
+
+
+if __name__ == "__main__":
+    main()

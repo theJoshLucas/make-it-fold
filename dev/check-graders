@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Free local check of an eval case's regex graders against a folder (no Claude usage).
+   dev/check-graders <case.yaml> <folder> [<folder> ...]"""
+import re, sys, yaml
+from pathlib import Path
+case = yaml.safe_load(open(sys.argv[1]))
+for folder in sys.argv[2:]:
+    ok = bad = 0
+    print(f"== {folder}")
+    for g in case["graders"]:
+        if g["type"] != "regex":
+            print(f"   skip  {g['name']} ({g['type']})"); continue
+        t = g.get("target", {})
+        path = Path(folder) / t["path"] if isinstance(t, dict) and t.get("path") else None
+        text = path.read_text() if path and path.exists() else ""
+        flags = re.I if "i" in g.get("flags", "") else 0
+        found = re.search(g["pattern"], text, flags | re.M) is not None
+        want = g.get("match", "contains")
+        passed = (not found) if want == "not_contains" else found
+        ok += passed; bad += not passed
+        print(f"   {'PASS' if passed else 'FAIL'}  {g['name']}")
+    print(f"   -> {ok} pass, {bad} fail")

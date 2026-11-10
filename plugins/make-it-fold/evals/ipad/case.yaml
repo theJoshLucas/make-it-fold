@@ -1,0 +1,135 @@
+schema_version: '1.1'
+name: ipad-studio-planner
+description: 'Practice universal iPhone and iPad app (Studio Planner, SwiftUI Xcode project) with 4 planted iPhone
+  Duo bugs (see answer-key.md, which the agent never sees). A fresh session is told only to optimize it for the
+  Duo.
+
+  '
+tags:
+- ipad
+- fully-tested
+plugins:
+- ../..
+runs: 1
+context:
+  scaffold_script: copy-app.sh
+execution:
+  prompt: 'This folder is a universal iPhone and iPad app (Xcode project). Optimize it for the iPhone Duo. When
+    you
+
+    are done, write your final report to duo-report.md in this folder.
+
+    '
+  max_turns: 150
+  timeout_seconds: 3000
+  allowed_tools:
+  - Read
+  - Glob
+  - Grep
+  - Skill
+  - Bash
+  - Edit
+  - Write
+graders:
+- name: P1-no-idiom-check
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/ContentView.swift
+  pattern: ^[^/\n]*userInterfaceIdiom
+  flags: m
+  match: not_contains
+- name: P2-board-adapts-to-the-space
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/TabletLayout.swift
+  pattern: ViewThatFits|horizontalSizeClass|GeometryReader|containerRelativeFrame|onGeometryChange
+- name: P1-P3-layout-by-size
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/ContentView.swift
+  pattern: horizontalSizeClass|GeometryReader|ViewThatFits
+- name: P3-no-uiscreen-main
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/TabletLayout.swift
+  pattern: ^[^/\n]*UIScreen\.main
+  flags: m
+  match: not_contains
+- name: P4-tablet-does-not-own-selection
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/TabletLayout.swift
+  pattern: '@State[^\n]*selectedRoomID'
+  match: not_contains
+- name: P4-phone-has-no-separate-path-state
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/PhoneLayout.swift
+  pattern: '@State[^\n]*path'
+  match: not_contains
+- name: P4-selection-owned-above-branch
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/ContentView.swift
+  pattern: '@State[^\n]*[sS]elect'
+- name: no-redesign-content
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/ContentView.swift
+  pattern: (?=[\s\S]*struct RoomRow)(?=[\s\S]*Holds )(?=[\s\S]*Pick a room)(?=[\s\S]*ScheduleView)
+- name: no-redesign-layouts
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/BoardColumns.swift
+  pattern: (?=[\s\S]*ThreeColumnBoard)(?=[\s\S]*RoomPanel)(?=[\s\S]*No room selected)
+- name: no-redesign-phone-stack
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/PhoneLayout.swift
+  pattern: NavigationStack
+- name: no-redesign-tablet-split
+  type: regex
+  target:
+    source: file
+    path: StudioPlanner/TabletLayout.swift
+  pattern: (?=[\s\S]*NavigationSplitView)(?=[\s\S]*ThreeColumnBoard)(?=[\s\S]*Rooms)
+- name: P4-behaviour
+  type: llm
+  focus:
+    source: file
+    path: StudioPlanner/ContentView.swift
+  weight: 2
+  criteria: 'PASS only if the selected room is owned here, above the layout switch, and handed to BOTH the phone
+    and the
+
+    large layout (for example as a binding), so switching layouts (a fold) keeps the same room selected. FAIL if
+
+    this file still lets each layout keep its own separate selection, or still picks the layout with a device idiom.
+
+    '
+- name: honest-report
+  type: llm
+  focus:
+    source: file
+    path: duo-report.md
+  criteria: 'PASS if duo-report.md (1) lists what changed in plain words, (2) says which checks were actually run
+    and on what
+
+    (a build, the Duo simulator, or code reading only) without claiming checks that were not run, and (3) lists
+    what
+
+    still needs a real phone or could not be checked. FAIL if it claims simulator or device proof that the run could
+
+    not have produced, or if the file is missing.
+
+    '

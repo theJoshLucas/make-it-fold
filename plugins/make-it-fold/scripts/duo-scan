@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""duo-scan: a free, read-only first look at an app before a Duo job.
+
+It works out what kind of app this is (which "surfaces" it ships on) and lists SUSPECTS:
+code patterns that often break on the iPhone Duo. A suspect is not a bug. It is fixed only
+when a real check on the Duo simulator fails. The scan also tells the job which recipe files
+to read, so the job reads only what applies.
+
+  duo-scan [folder]            human summary (default: current folder)
+  duo-scan [folder] --json     the same, as JSON
+"""
+import json
+import os
+import plistlib
+import re
+import sys
+from pathlib import Path
+
+SKIP_DIRS = {"node_modules", ".git", "dist", "build", "out", ".next", ".nuxt", ".svelte-kit", ".expo",
+             "Pods", "DerivedData", ".build", "coverage", "vendor", ".venv", "venv", "__pycache__",
+             "android", ".turbo", ".cache", "results"}
+SKIP_NAME = re.compile(r"(sandbox|mockup|fixture|__snapshots__|storybook-static)", re.I)
+LOCKFILES = {"package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb", "Podfile.lock", "Package.resolved"}
+WEB_EXT = {".html", ".htm", ".css", ".scss", ".sass", ".less", ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro", ".mdx"}
+NATIVE_EXT = {".swift", ".m", ".mm", ".h"}
+MAX_FILE = 600_000
+
+# (id, surface, regex, what it means, recipe to read)
+WEB_RULES = [
+    ("full-height-vh", "web", r"\b100vh\b|\bh-screen\b|\bmin-h-screen\b|\bmax-h-screen\b|height:\s*100%\s*;?\s*$",
+     "full-height built on 100vh: hides behind browser bars and the side bar", "web.md#height"),
+    ("viewport-tag", "web", r"<meta[^>]+name=[\"']viewport[\"']",
+     "viewport tag: check viewport-fit=cover (needed for safe-area insets) and no user-scalable=no", "web.md#viewport"),
+    ("fixed-or-sticky", "web", r"position:\s*(fixed|sticky)|\bfixed\s+(top|bottom|inset)|\bsticky\s+top",
+     "pinned bars: need safe-area padding on all four sides", "web.md#safe-areas"),
+    ("orientation-query", "web", r"orientation:\s*(portrait|landscape)|matchMedia\([^)]*orientation",
+     "layout keyed to orientation instead of available width", "web.md#breakpoints"),
+    ("device-width-query", "web", r"(min|max)-device-width|(?<![\w.])screen\.(width|height|availWidth|availHeight)|window\.screen\.(width|height)",
+     "layout keyed to the device screen, which reports the COVER size even when the inner screen shows", "web.md#breakpoints"),
+    ("fixed-px-width", "web", r"(?<![-\w])(min-)?width:\s*(4[0-9]{2}|[5-9][0-9]{2}|1[0-9]{3})px|\bw-\[(4[0-9]{2}|[5-9][0-9]{2}|1[0-9]{3})px\]",
+     "fixed pixel widths that will not fit the 382 px cover or waste the 951 px inner screen", "web.md#widths"),
+    ("ua-sniff", "web", r"navigator\.(userAgent|platform|vendor)|userAgentData|/iPhone\|iPad|isMobile\(",
+     "user-agent check (tag it: layout = suspect; capability or logging = fine)", "web.md#user-agent"),
+    ("hover-only", "web", r":hover\b|\bgroup-hover:|\bhover:",
+     "hover-only controls have no touch equivalent", "web.md#touch"),
+    ("resize-once", "web", r"innerWidth|innerHeight|clientWidth|matchMedia\(",
+     "layout read by script: must re-read on resize, not once at load", "web.md#script-layout"),
+    ("small-input-font", "web", r"(input|textarea|select)[^{]*\{[^}]*font-size:\s*(1[0-5]|[0-9])px|<(input|textarea|select)[^>]*\btext-(xs|sm)\b",
+     "inputs under 16 px make iOS Safari zoom in when tapped (duo-shot measures this for real)", "web.md#zoom"),
+    # components that load their own recipe
+    ("table", "web", r"<table\b|<Table\b|DataGrid|ag-grid|@tanstack/react-table|<thead\b",
+     "tables: need a narrow-screen plan (scroll that keeps key columns and actions)", "components.md#tables"),
+    ("map", "web", r"leaflet|mapbox|maplibre|google\.maps|react-map-gl|<Map\b",
+     "maps: must redraw after a fold", "components.md#maps"),
+    ("canvas-pdf", "web", r"<canvas\b|getContext\(['\"]2d|pdfjs|react-pdf|pdf-lib|konva|fabric\b",
+     "canvas or PDF: coordinates and sizes change on a fold", "components.md#canvas"),
+    ("overlay", "web", r"createPortal|<Dialog\b|<Popover\b|<Sheet\b|<Drawer\b|<DropdownMenu\b|<Tooltip\b|floating-ui|popper|<dialog\b",
+     "dialogs and popovers: check edges, the side bar and the fold after a resize", "components.md#overlays"),
+    ("iframe", "web", r"<iframe\b",
+     "iframes: parent CSS cannot fix a third-party frame's insides", "components.md#iframes"),
+]
+NATIVE_RULES = [
+    ("uiscreen-main", "native", r"(?<!XC)UIScreen\.main\b|\[UIScreen mainScreen\]",
+     "UIScreen.main: wrong screen on the Duo (Apple's app-resizability skill, UIScreen task)", "native.md#uiscreen"),
+    ("idiom", "native", r"userInterfaceIdiom|UI_USER_INTERFACE_IDIOM",
+     "layout picked by device type: the Duo says iPhone, so an iPad layout never shows", "native.md#idiom"),
+    ("interface-orientation", "native", r"interfaceOrientation|statusBarOrientation|UIDevice\.current\.orientation|UIDeviceOrientation",
+     "layout keyed to orientation instead of size", "native.md#orientation"),
+    ("hardcoded-inset", "native", r"safeAreaInsets\.(bottom|top|left|right)\s*[+\-]\s*\d|\.padding\(\.(top|bottom),\s*\d{2,}\)",
+     "hand-tuned inset numbers: break when the bar moves to the side", "native.md#safe-areas"),
+    ("ignores-safe-area", "native", r"\.ignoresSafeArea\(\)|edgesIgnoringSafeArea",
+     "content drawn under bars, the camera or the fold", "native.md#safe-areas"),
+    ("custom-toolbar-view", "native", r"ToolbarItem\(placement:\s*\.principal|titleView\s*=|UIBarButtonItem\(customView",
+     "custom toolbar views are NOT shown in the Duo's vertical bar: keep the control reachable", "native.md#bars"),
+    ("fixed-frame", "native", r"\.frame\(width:\s*\d{3,}|CGRect\(x:[^)]*width:\s*\d{3,}",
+     "fixed point sizes", "native.md#sizes"),
+    ("app-delegate-window", "native", r"UIApplicationDelegate|window\s*=\s*UIWindow\(frame",
+     "app lifecycle instead of scene lifecycle (required for resizing)", "native.md#scenes"),
+    ("nested-navstack", "native", r"NavigationStack|NavigationView",
+     "navigation stacks: a second one inside a side column pops the screen back", "native.md#navigation"),
+    ("resign-in-update", "native", r"resignFirstResponder|endEditing",
+     "keyboard dismissal: never inside a SwiftUI update (it can freeze the app)", "native.md#keyboard"),
+    ("webview", "wrapper", r"WKWebView|SFSafariViewController|WebView\(",
+     "a web view: this app is (partly) a website in a native shell", "wrapper.md"),
+]
+
+
+def skip_dir(rel):
+    parts = rel.parts
+    return any(p in SKIP_DIRS for p in parts) or any(SKIP_NAME.search(p) for p in parts)
+
+
+def files(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel = Path(dirpath).relative_to(root)
+        dirnames[:] = [d for d in dirnames if not skip_dir(rel / d)]
+        if skip_dir(rel):
+            continue
+        for f in filenames:
+            if f in LOCKFILES or f.endswith(".min.js") or f.endswith(".map"):
+                continue
+            p = Path(dirpath) / f
+            if "UITests" in str(p) or "Tests/" in str(p.relative_to(root)):
+                yield p, True
+            else:
+                yield p, False
+
+
+def read(p):
+    try:
+        if p.stat().st_size > MAX_FILE:
+            return None
+        return p.read_text(errors="ignore")
+    except OSError:
+        return None
+
+
+def detect_surfaces(root):
+    s, facts = set(), {}
+    pkg = root / "package.json"
+    deps = {}
+    if pkg.exists():
+        try:
+            j = json.loads(pkg.read_text())
+            deps = {**j.get("dependencies", {}), **j.get("devDependencies", {})}
+        except ValueError:
+            pass
+    if deps.get("expo") or deps.get("react-native"):
+        s.add("expo" if deps.get("expo") else "react-native")
+        facts["expo"] = deps.get("expo")
+        facts["react-native"] = deps.get("react-native")
+    if any(k in deps for k in ("@capacitor/core", "@ionic/react", "cordova")):
+        s.add("capacitor")
+    if (root / "pubspec.yaml").exists():
+        s.add("flutter")
+    if (root / "ProjectSettings" / "ProjectVersion.txt").exists():
+        s.add("unity")
+    if list(root.glob("*.xcodeproj")) or list(root.glob("*/*.xcodeproj")):
+        s.add("native")
+    if deps or any(p.name == "index.html" for p, _ in files(root)):
+        if not s & {"expo", "react-native", "flutter", "unity"}:
+            s.add("web")
+    for m in [p for p, _ in files(root) if p.name in ("manifest.webmanifest", "manifest.json")]:
+        try:
+            mj = json.loads(m.read_text())
+            if "display" in mj or "start_url" in mj:
+                s.add("home-screen")
+                facts["manifest"] = {"file": str(m.relative_to(root)), "display": mj.get("display"),
+                                     "orientation": mj.get("orientation")}
+        except ValueError:
+            pass
+    if "electron" in deps:
+        s.add("mac-port")
+        facts["electron"] = True
+    return s, facts
+
+
+def xcode_facts(root):
+    out = []
+    for pbx in list(root.glob("*.xcodeproj/project.pbxproj")) + list(root.glob("*/*.xcodeproj/project.pbxproj")):
+        t = pbx.read_text(errors="ignore")
+        f = {"project": str(pbx.parent.relative_to(root))}
+        f["deployment_target"] = sorted(set(re.findall(r"IPHONEOS_DEPLOYMENT_TARGET = ([\d.]+);", t)))
+        f["device_family"] = sorted(set(re.findall(r"TARGETED_DEVICE_FAMILY = \"?([\d,]+)\"?;", t)))
+        f["macos_only"] = bool(re.search(r"SDKROOT = macosx;", t)) and not re.search(r"SDKROOT = iphoneos;", t)
+        f["requires_full_screen"] = "UIRequiresFullScreen" in t
+        f["launch_screen_key"] = bool(re.search(r"INFOPLIST_KEY_UILaunch(Screen|Storyboard)", t))
+        out.append(f)
+    for plist in root.glob("**/Info.plist"):
+        if skip_dir(plist.relative_to(root)):
+            continue
+        try:
+            d = plistlib.loads(plist.read_bytes())
+        except Exception:
+            continue
+        out.append({"plist": str(plist.relative_to(root)),
+                    "launch_screen_key": any(k in d for k in ("UILaunchScreen", "UILaunchScreens", "UILaunchStoryboardName", "UILaunchStoryboards")),
+                    "requires_full_screen": d.get("UIRequiresFullScreen"),
+                    "orientations": d.get("UISupportedInterfaceOrientations"),
+                    "scene_manifest": "UIApplicationSceneManifest" in d})
+    return out
+
+
+def scan(root):
+    root = Path(root).resolve()
+    surfaces, facts = detect_surfaces(root)
+    hits = {}
+    for p, is_test in files(root):
+        ext = p.suffix.lower()
+        rules = WEB_RULES if ext in WEB_EXT else NATIVE_RULES if ext in NATIVE_EXT else None
+        if not rules:
+            continue
+        text = read(p)
+        if text is None:
+            continue
+        lines = text.splitlines()
+        for rid, surf, rx, meaning, recipe in rules:
+            r = re.compile(rx, re.M)
+            for i, line in enumerate(lines, 1):
+                if r.search(line):
+                    if is_test:
+                        continue
+                    if rid == "full-height-vh":
+                        near = " ".join(lines[max(0, i - 2):i + 2])
+                        if re.search(r"\b100[dsl]vh\b|\b(h|min-h|max-h)-(dvh|svh|lvh)\b", near):
+                            continue  # a 100vh fallback right next to dvh/svh is correct, not a suspect
+                    tag = None
+                    if rid == "ua-sniff":
+                        low = line.lower()
+                        tag = "logging" if any(w in low for w in ("analytics", "log(", "track", "telemetry", "journey")) \
+                            else "capability" if any(w in low for w in ("venmo", "deeplink", "deep link", "app store", "intent://", "share")) \
+                            else "layout?"
+                    h = hits.setdefault(rid, {"surface": surf, "meaning": meaning, "recipe": recipe, "where": []})
+                    if len(h["where"]) < 40:
+                        h["where"].append({"file": str(p.relative_to(root)), "line": i,
+                                           "text": line.strip()[:140], **({"tag": tag} if tag else {})})
+                    h["count"] = h.get("count", 0) + 1
+    if any(h["surface"] == "wrapper" for h in hits.values()):
+        surfaces.add("wrapper")
+    xf = xcode_facts(root)
+    if any(f.get("macos_only") for f in xf):
+        surfaces.add("mac-port")
+    if any("2" in ",".join(f.get("device_family", [])) for f in xf):
+        surfaces.add("ipad")
+    recipes = sorted({h["recipe"].split("#")[0] for h in hits.values()})
+    route_files = {"web": "web.md", "home-screen": "home-screen.md", "wrapper": "wrapper.md", "native": "native.md",
+                   "ipad": "ipad.md", "expo": "expo.md", "react-native": "expo.md", "flutter": "guided.md",
+                   "capacitor": "guided.md", "unity": "guided.md", "mac-port": "mac-port.md"}
+    for srf in surfaces:
+        if route_files.get(srf) and route_files[srf] not in recipes:
+            recipes.append(route_files[srf])
+    traps = sorted({("layout-web.md" if srf in ("web", "home-screen", "wrapper", "capacitor") else "layout-native.md")
+                    for srf in surfaces} | {"testing.md", "discipline.md"})
+    return {"folder": str(root), "surfaces": sorted(surfaces), "facts": facts, "xcode": xf,
+            "suspects": hits, "read_recipes": sorted(set(recipes)), "read_traps": traps}
+
+
+def human(r):
+    out = [f"duo-scan: {r['folder']}", f"Surfaces: {', '.join(r['surfaces']) or 'unknown (identify by hand)'}"]
+    for k, v in r["facts"].items():
+        out.append(f"  {k}: {v}")
+    for f in r["xcode"]:
+        out.append("  xcode: " + ", ".join(f"{k}={v}" for k, v in f.items()))
+    out.append("Suspects (fix only if a Duo check fails):")
+    if not r["suspects"]:
+        out.append("  none")
+    for rid, h in sorted(r["suspects"].items(), key=lambda kv: -kv[1]["count"]):
+        out.append(f"  [{rid}] {h['count']}x  {h['meaning']}  -> {h['recipe']}")
+        for w in h["where"][:5]:
+            out.append(f"      {w['file']}:{w['line']}  {w.get('tag', '')}  {w['text'][:90]}")
+        if h["count"] > 5:
+            out.append(f"      ... {h['count'] - 5} more (use --json)")
+    out.append("Read these recipes: " + ", ".join(r["read_recipes"]))
+    out.append("Read these trap files: " + ", ".join(r["read_traps"]))
+    return "\n".join(out)
+
+
+if __name__ == "__main__":
+    if "-h" in sys.argv or "--help" in sys.argv:
+        print(__doc__.strip())
+        sys.exit(0)
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    res = scan(args[0] if args else ".")
+    print(json.dumps(res, indent=2) if "--json" in sys.argv else human(res))

@@ -1,0 +1,28 @@
+#!/bin/bash
+# Fast project check (no Claude usage, no simulator): manifests, script syntax, exam graders.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+claude plugin validate . >/dev/null
+claude plugin validate plugins/make-it-fold >/dev/null
+S=plugins/make-it-fold/scripts
+for f in duo-sim duo-scan duo-shot duo-listen duo-setup; do python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$S/$f"; done
+node -e "new Function(require('fs').readFileSync('$S/duo-reporter.js','utf8'))"
+# Every fixed reference copy must pass all of its exam's regex graders.
+for c in web native ipad wrapper home-screen expo; do
+  dev/check-graders "plugins/make-it-fold/evals/$c/case.yaml" "dev/answers/$c/fixed" | grep -q -- "-> [0-9]* pass, 0 fail" || { echo "graders fail on dev/answers/$c/fixed"; exit 1; }
+done
+dev/check-graders plugins/make-it-fold/evals/expo-old/case.yaml plugins/make-it-fold/practice/expo-old | grep -q -- ", 0 fail" || { echo "expo-old graders fail"; exit 1; }
+# Nothing private in any file git would publish (tracked, or new and not ignored). Two generic
+# patterns always run (a home-folder path, a personal email address); the brackets keep this file
+# from matching itself. The maintainer's own names live in dev/private-words.txt, one per line,
+# which is git-ignored so the list itself is never published.
+words='/[U]sers/|@[g]mail\.com'
+if [ -f dev/private-words.txt ]; then
+  extra=$(grep -v '^#' dev/private-words.txt | grep . | paste -sd'|' -)
+  [ -n "$extra" ] && words="$words|$extra"
+else
+  echo "note: no dev/private-words.txt on this Mac, so only the generic privacy patterns ran"
+fi
+hits=$(git ls-files -co --exclude-standard -z | xargs -0 grep -s -n -i -E "$words" || true)
+if [ -n "$hits" ]; then echo "$hits"; echo "private text in the repo"; exit 1; fi
+echo "make-it-fold checks passed"

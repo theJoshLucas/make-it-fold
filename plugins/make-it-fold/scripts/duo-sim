@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+"""duo-sim: put the iPhone Duo simulator into a named pose, and prove it got there.
+
+A thin wrapper over duoctl (MIT, https://github.com/skarol/duoctl, installed pinned by
+/duo-setup). It owns one simulator called "Duo Kit" and verifies every pose from duoctl's own
+readback of the active screen and its size. Two locks keep sessions apart: one per command, and
+one that duo-shot holds for a whole check, so nobody else folds the simulator between a pose
+and its screenshot. duoctl only runs if its folder is exactly the reviewed commit, untouched.
+It never uses `simctl io ... screenConfig` (that crashes SpringBoard).
+
+  duo-sim ensure                 create/boot "Duo Kit" if needed, print its UDID
+  duo-sim pose <name>            cover-portrait | cover-landscape | cover-landscape-flipped |
+                                 inner-portrait | inner-landscape | book | laptop
+  duo-sim state                  JSON: hinge angle, active screen, orientation, size in points
+  duo-sim shot <file.png>        full-resolution screenshot of the screen that is showing
+  duo-sim tap <x> <y>            tap a point (points of the active screen, either screen)
+  duo-sim swipe <x1> <y1> <x2> <y2>
+  duo-sim open-url <url>         open a URL in the simulator's Safari
+  duo-sim reset-safari           close all of Duo Kit's Safari tabs (old test tabs skew results)
+  duo-sim shutdown               shut Duo Kit down, only if duo-sim booted it
+  duo-sim udid                   print Duo Kit's UDID (no side effects)
+  duo-sim runtime                print Duo Kit's iOS version, e.g. "iOS 27.2"
+
+Environment: DUO_SIM_UDID to use a specific simulator; DUOCTL to point at a duoctl script.
+"""
+import fcntl
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold"
+STATE_FILE = CACHE / "duo-kit.json"
+LOCK_FILE = CACHE / "duo-sim.lock"
+RUN_LOCK = CACHE / "duo-run.lock"
+SIM_NAME = "Duo Kit"
+DEVICE_TYPE = "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo"
+PINNED = (Path(__file__).resolve().parent.parent / "tools" / "duoctl.pin").read_text().split()[0] \
+    if (Path(__file__).resolve().parent.parent / "tools" / "duoctl.pin").exists() else None
+
+# pose -> (steps, expected screen, expected shape). Flipped poses are also checked by name below.
+POSES = {
+    "cover-portrait":          (["close", ("rotate", "portrait")], "cover", "portrait"),
+    "cover-landscape":         (["close", ("rotate", "landscape")], "cover", "landscape"),
+    "cover-landscape-flipped": (["close", ("rotate", "landscape-flipped")], "cover", "landscape"),
+    "inner-landscape":         (["close", ("rotate", "portrait"), "open"], "inner", "landscape"),
+    "inner-portrait":          (["close", ("rotate", "landscape"), "open"], "inner", "portrait"),
+    # Half-open: the fold runs down the middle of a wide screen (book) or across a tall one (laptop).
+    "book":                    (["close", ("rotate", "portrait"), "open", "half"], "inner", "landscape"),
+    "laptop":                  (["close", ("rotate", "landscape"), "open", "half"], "inner", "portrait"),
+}
+
+
+class SimError(Exception):
+    pass
+
+
+def run(args, check=True):
+    r = subprocess.run(args, capture_output=True, text=True)
+    if check and r.returncode != 0:
+        raise SimError(f"{' '.join(map(str, args))}\n{(r.stderr or r.stdout).strip()}")
+    return r
+
+
+_duoctl_ok = None
+
+
+def duoctl_path():
+    """The pinned duoctl and nothing else: its folder must sit at the reviewed commit with no
+    changed or added files. DUOCTL overrides this on purpose (you picked that script yourself)."""
+    global _duoctl_ok
+    if os.environ.get("DUOCTL"):
+        return os.environ["DUOCTL"]
+    if not PINNED:
+        raise SimError("tools/duoctl.pin is missing from the plugin. Reinstall the plugin.")
+    repo = CACHE / "duoctl" / PINNED
+    p = repo / "skills" / "duoctl" / "scripts" / "duoctl"
+    if not p.exists():
+        raise SimError("duoctl is not installed. Run /duo-setup (it installs the pinned, reviewed copy).")
+    if _duoctl_ok is None:
+        head = run(["git", "-C", str(repo), "rev-parse", "HEAD"], check=False)
+        dirty = run(["git", "-C", str(repo), "status", "--porcelain"], check=False)
+        _duoctl_ok = (head.returncode == 0 and head.stdout.strip() == PINNED
+                      and dirty.returncode == 0 and not dirty.stdout.strip())
+    if not _duoctl_ok:
+        raise SimError(f"the duoctl copy in {repo} is not the reviewed version (wrong commit, or its "
+                       "files were changed). Run /duo-setup: it replaces it with a clean copy.")
+    return str(p)
+
+
+def hold(path, wait, busy):
+    """Take an exclusive lock, waiting up to `wait` seconds. Keep the returned file open."""
+    fh = open(path, "w")
+    deadline, told = time.time() + wait, False
+    while True:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fh
+        except BlockingIOError:
+            if not told:
+                print(f"duo-sim: {busy}; waiting up to {wait} s", file=sys.stderr)
+                told = True
+            if time.time() > deadline:
+                raise SystemExit(f"duo-sim: gave up waiting ({busy})")
+            time.sleep(1)
+
+
+def load_state():
+    try:
+        return json.loads(STATE_FILE.read_text())
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def save_state(s):
+    CACHE.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(s, indent=2))
+
+
+def devices():
+    data = json.loads(run(["xcrun", "simctl", "list", "devices", "-j"]).stdout)
+    return [d | {"runtime": rt} for rt, ds in data["devices"].items() for d in ds]
+
+
+def duo_runtime():
+    data = json.loads(run(["xcrun", "simctl", "list", "runtimes", "-j"]).stdout)
+    for rt in sorted(data["runtimes"], key=lambda r: r.get("version", ""), reverse=True):
+        types = [t.get("identifier") for t in rt.get("supportedDeviceTypes", [])]
+        if rt.get("isAvailable") and DEVICE_TYPE in types:
+            return rt["identifier"]
+    raise SimError("no installed iOS runtime supports the iPhone Duo. Run /duo-setup.")
+
+
+def find_udid(remember=True):
+    if os.environ.get("DUO_SIM_UDID"):
+        return os.environ["DUO_SIM_UDID"]
+    s = load_state()
+    all_devices = devices()
+    if s.get("udid") and any(d["udid"] == s["udid"] for d in all_devices):
+        return s["udid"]
+    for d in all_devices:
+        if d["name"] == SIM_NAME and d.get("isAvailable", True):
+            if remember:
+                save_state(s | {"udid": d["udid"]})
+            return d["udid"]
+    return None
+
+
+def ensure():
+    udid = find_udid()
+    s = load_state()
+    if not udid:
+        udid = run(["xcrun", "simctl", "create", SIM_NAME, DEVICE_TYPE, duo_runtime()]).stdout.strip()
+        s = s | {"udid": udid, "created": True}
+        save_state(s)
+    state = next((d["state"] for d in devices() if d["udid"] == udid), "Shutdown")
+    if state != "Booted":
+        run(["xcrun", "simctl", "boot", udid], check=False)
+        run(["xcrun", "simctl", "bootstatus", udid, "-b"])
+        save_state(load_state() | {"booted_by_duo_sim": True, "booted_udid": udid})
+    return udid
+
+
+def duoctl(udid, *args):
+    out = run([duoctl_path(), "-d", udid, *args]).stdout
+    return out
+
+
+def read_state(udid):
+    return json.loads(duoctl(udid, "state"))
+
+
+def shape(st):
+    w, h = st["sizePoints"]
+    return "landscape" if w > h else "portrait"
+
+
+def step(udid, s):
+    if isinstance(s, tuple) and s[0] == "rotate":
+        r = run([duoctl_path(), "-d", udid, "rotate", s[1]], check=False)
+        return r.returncode == 0
+    duoctl(udid, s)
+    return True
+
+
+def set_pose(udid, name, tries=3):
+    if name not in POSES:
+        raise SimError(f"unknown pose {name!r}. Poses: {', '.join(POSES)}")
+    steps, screen, want_shape = POSES[name]
+    last = None
+    for _ in range(tries):
+        for s in steps:
+            step(udid, s)
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            last = read_state(udid)
+            flip_ok = (name != "cover-landscape-flipped") or last.get("orientation") == "landscape-flipped"
+            if name == "cover-landscape":
+                flip_ok = last.get("orientation") == "landscape"
+            if last["activeScreen"] == screen and shape(last) == want_shape and flip_ok:
+                if name in ("book", "laptop"):
+                    angle = last.get("hingeAngle")
+                    if angle is None or not (60 <= angle <= 120):
+                        break
+                time.sleep(0.8)  # let the app finish laying out before anyone looks
+                return read_state(udid) | {"pose": name}
+            time.sleep(0.4)
+    # Fallback: an app locked to portrait on the cover never rotates there, but the inner
+    # screen ignores orientation locks. Open first, then rotate on the inner screen.
+    if screen == "inner":
+        duoctl(udid, "open")
+        for o in ("portrait", "portrait-upside-down", "landscape", "landscape-flipped"):
+            step(udid, ("rotate", o))
+            time.sleep(0.6)
+            last = read_state(udid)
+            if last["activeScreen"] == "inner" and shape(last) == want_shape:
+                if name in ("book", "laptop"):
+                    duoctl(udid, "half")
+                    time.sleep(0.8)
+                    last = read_state(udid)
+                time.sleep(0.8)
+                return read_state(udid) | {"pose": name, "via": "inner-rotate"}
+    raise SimError(f"could not reach pose {name!r} (the app may lock its orientation on this screen); "
+                   f"last state: {json.dumps(last)}")
+
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        return
+    cmd, args = sys.argv[1], sys.argv[2:]
+    CACHE.mkdir(parents=True, exist_ok=True)
+    if cmd == "udid":  # read-only: no lock, nothing written
+        print(find_udid(remember=False) or "")
+        return
+    # duo-shot holds the run lock for a whole check and tells its own duo-sim calls so.
+    run_lock = None if os.environ.get("DUO_RUN_HELD") == "1" else \
+        hold(RUN_LOCK, 120, "another session is running a Duo check on this simulator")
+    with hold(LOCK_FILE, 120, "another session is using the Duo simulator right now"):
+        try:
+            if cmd == "ensure":
+                print(ensure())
+            elif cmd == "pose":
+                print(json.dumps(set_pose(ensure(), args[0]), indent=2))
+            elif cmd == "state":
+                print(json.dumps(read_state(ensure()), indent=2))
+            elif cmd == "shot":
+                print(duoctl(ensure(), "screenshot", args[0]).strip())
+            elif cmd == "tap":
+                print(duoctl(ensure(), "tap", args[0], args[1]).strip())
+            elif cmd == "swipe":
+                print(duoctl(ensure(), "swipe", *args[:4]).strip())
+            elif cmd == "reset-safari":
+                # Close every Safari tab on Duo Kit (old test tabs keep running and skew results).
+                udid = ensure()
+                if os.environ.get("DUO_SIM_UDID") and udid != load_state().get("udid"):
+                    raise SimError("reset-safari only runs on the plugin's own Duo Kit simulator")
+                run(["xcrun", "simctl", "terminate", udid, "com.apple.mobilesafari"], check=False)
+                time.sleep(1)
+                lib = Path.home() / "Library/Developer/CoreSimulator/Devices" / udid / "data/Library/Safari"
+                for pat in ("SafariTabs.db*", "BrowserState.db*"):
+                    for f in lib.glob(pat):
+                        f.unlink()
+                print("Safari reset: no open tabs")
+            elif cmd == "open-url":
+                run(["xcrun", "simctl", "openurl", ensure(), args[0]])
+                print(f"opened {args[0]}")
+            elif cmd == "runtime":
+                udid = find_udid()
+                rt = next((d["runtime"] for d in devices() if d["udid"] == udid), "")
+                m = re.search(r"SimRuntime\.([A-Za-z]+)-(\d+)(?:-(\d+))?", rt)
+                print(f"{m.group(1)} {m.group(2)}" + (f".{m.group(3)}" if m.group(3) else "") if m else "")
+            elif cmd == "shutdown":
+                # Only ever the exact simulator duo-sim itself booted, never one it found running.
+                s = load_state()
+                udid = s.get("booted_udid") if s.get("booted_by_duo_sim") else None
+                if udid:
+                    run(["xcrun", "simctl", "shutdown", udid], check=False)
+                    save_state(s | {"booted_by_duo_sim": False, "booted_udid": None})
+                    print("shut down Duo Kit")
+                else:
+                    print("left running: duo-sim did not boot it")
+            else:
+                raise SimError(f"unknown command {cmd!r}")
+        except (SimError, IndexError, KeyError, ValueError) as e:
+            print(f"duo-sim: {e}", file=sys.stderr)
+            sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

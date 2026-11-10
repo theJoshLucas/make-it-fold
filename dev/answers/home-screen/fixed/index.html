@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Practice Timer">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Practice Timer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <div class="main">
+    <section class="timer-card" id="timer-view">
+      <h1>Practice Timer</h1>
+      <div class="timer" id="timer" aria-live="off">00:00</div>
+      <button class="big" id="toggle" type="button">Start</button>
+    </section>
+    <section class="log" id="log-view">
+      <h2>Today</h2>
+      <ul id="log"></ul>
+    </section>
+  </div>
+  <nav class="tabbar" aria-label="Sections">
+    <button type="button" data-go="timer-view" aria-current="page">Timer</button>
+    <button type="button" data-go="log-view">Log</button>
+    <button type="button" data-go="timer-view">Goals</button>
+  </nav>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

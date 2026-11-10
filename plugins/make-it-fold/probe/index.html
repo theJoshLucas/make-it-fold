@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Duo probe</title>
+<style>
+  :root { color-scheme: light dark; --bg: #ffffff; --fg: #111111; --muted: #666666; --accent: #0a66ff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111111; --fg: #f2f2f2; --muted: #9a9a9a; --accent: #5c9dff; } }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.4 -apple-system, system-ui, sans-serif; }
+  main {
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+             max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  table { border-collapse: collapse; width: 100%; max-width: 560px; }
+  td { padding: 4px 8px 4px 0; vertical-align: top; overflow-wrap: anywhere; }
+  td:first-child { color: var(--muted); white-space: nowrap; }
+  button { font: inherit; font-size: 18px; padding: 14px 22px; border: 0; border-radius: 12px;
+           background: var(--accent); color: #ffffff; margin: 12px 0; min-width: 200px; }
+  .ruler { position: fixed; left: 0; top: 0; width: 0; visibility: hidden; pointer-events: none; }
+  #inset { position: fixed; visibility: hidden; pointer-events: none;
+           padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Duo probe</h1>
+  <button id="tap" type="button">Tap me (0)</button>
+  <table id="out"></table>
+  <p id="note"></p>
+</main>
+<div class="ruler" id="svh" style="height:100svh"></div>
+<div class="ruler" id="dvh" style="height:100dvh"></div>
+<div class="ruler" id="lvh" style="height:100lvh"></div>
+<div class="ruler" id="vh" style="height:100vh"></div>
+<div id="inset"></div>
+<script>
+// Duo probe: shows what this screen gives a web page, and (when served by duo-shot's local
+// listener) posts the same numbers to /report so tests can verify a fold from inside the page.
+(function () {
+  var taps = 0;
+  if (!window.__duoMarker) window.__duoMarker = Date.now() + "-" + Math.random().toString(36).slice(2);
+  function px(id) { return Math.round(document.getElementById(id).getBoundingClientRect().height); }
+  function inset() {
+    var s = getComputedStyle(document.getElementById("inset"));
+    return { top: parseFloat(s.paddingTop), right: parseFloat(s.paddingRight),
+             bottom: parseFloat(s.paddingBottom), left: parseFloat(s.paddingLeft) };
+  }
+  function mode() {
+    var modes = ["standalone", "fullscreen", "minimal-ui", "browser"];
+    for (var i = 0; i < modes.length; i++) if (matchMedia("(display-mode: " + modes[i] + ")").matches) return modes[i];
+    return "unknown";
+  }
+  function posture() {
+    if (navigator.devicePosture && navigator.devicePosture.type) return navigator.devicePosture.type;
+    if (matchMedia("(device-posture: folded)").matches) return "folded (media query)";
+    if (matchMedia("(device-posture: continuous)").matches) return "continuous (media query)";
+    return "not available";
+  }
+  function segments() {
+    if (window.viewport && window.viewport.segments) return window.viewport.segments.length + " segment(s)";
+    return "not available";
+  }
+  function rect(id) {
+    var r = document.getElementById(id).getBoundingClientRect();
+    return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+  }
+  var lastClick = null;
+  // Every touch reports where it landed in page coordinates, so a test can work out the
+  // offset between screen points and page pixels with one calibration tap.
+  document.addEventListener("click", function (e) {
+    lastClick = { clientX: Math.round(e.clientX), clientY: Math.round(e.clientY), target: e.target.id || e.target.tagName };
+    report("click");
+  }, true);
+  function read(reason) {
+    var i = inset();
+    return {
+      tapButton: rect("tap"), lastClick: lastClick,
+      reason: reason, marker: window.__duoMarker, taps: taps, time: new Date().toISOString(),
+      innerWidth: innerWidth, innerHeight: innerHeight,
+      visualViewport: window.visualViewport ? [Math.round(visualViewport.width), Math.round(visualViewport.height)] : null,
+      screen: [screen.width, screen.height], dpr: devicePixelRatio,
+      svh: px("svh"), dvh: px("dvh"), lvh: px("lvh"), vh: px("vh"),
+      insetTop: i.top, insetRight: i.right, insetBottom: i.bottom, insetLeft: i.left,
+      orientation: (screen.orientation && screen.orientation.type) || (innerWidth > innerHeight ? "landscape" : "portrait"),
+      userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints,
+      displayMode: mode(), posture: posture(), viewportSegments: segments()
+    };
+  }
+  function show(d) {
+    var rows = [
+      ["Width x height", d.innerWidth + " x " + d.innerHeight + " CSS px"],
+      ["Visual viewport", d.visualViewport ? d.visualViewport.join(" x ") : "n/a"],
+      ["100svh / dvh / lvh / vh", d.svh + " / " + d.dvh + " / " + d.lvh + " / " + d.vh],
+      ["Safe areas (T R B L)", [d.insetTop, d.insetRight, d.insetBottom, d.insetLeft].join(" / ")],
+      ["Screen, pixel ratio", d.screen.join(" x ") + ", " + d.dpr],
+      ["Orientation", d.orientation],
+      ["Display mode", d.displayMode],
+      ["Posture", d.posture],
+      ["Viewport segments", d.viewportSegments],
+      ["Touch points", d.maxTouchPoints],
+      ["User agent", d.userAgent],
+      ["Page marker", d.marker]
+    ];
+    document.getElementById("out").innerHTML = rows.map(function (r) {
+      return "<tr><td>" + r[0] + "</td><td>" + String(r[1]).replace(/</g, "&lt;") + "</td></tr>";
+    }).join("");
+  }
+  var reportOK = location.protocol !== "file:";
+  function report(reason) {
+    var d = read(reason);
+    show(d);
+    if (!reportOK) return;
+    fetch("/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) })
+      .then(function (r) { if (!r.ok) reportOK = false; })
+      .catch(function () { reportOK = false; });
+  }
+  var t;
+  function soon(reason) { clearTimeout(t); t = setTimeout(function () { report(reason); }, 250); }
+  document.getElementById("tap").addEventListener("click", function () {
+    taps++; this.textContent = "Tapped " + taps + " time" + (taps === 1 ? "" : "s"); report("tap");
+  });
+  addEventListener("resize", function () { soon("resize"); });
+  if (window.visualViewport) visualViewport.addEventListener("resize", function () { soon("visual-resize"); });
+  addEventListener("orientationchange", function () { soon("orientation"); });
+  addEventListener("pageshow", function (e) { report(e.persisted ? "pageshow-cached" : "load"); });
+  document.getElementById("note").textContent =
+    "Nothing here is sent anywhere unless this page is served by a local test server on your own computer.";
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+plugins/make-it-fold/evals/results/
+plugins/make-it-fold/evals/*/results/
+.DS_Store
+__pycache__/
+dev/private-words.txt

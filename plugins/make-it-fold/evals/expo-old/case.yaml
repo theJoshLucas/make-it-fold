@@ -1,0 +1,58 @@
+schema_version: "1.1"
+name: expo-old-sdk-gate
+description: >
+  Practice Expo app on SDK 54 (Pocket Chores). The correct behaviour is to stop before any layout
+  edit and report that Expo SDK 58 or newer is required (see answer-key.md, which the agent never
+  sees). A fresh session is told only to optimize it for the Duo.
+tags: [expo, version-gate]
+plugins: ["../.."]
+runs: 1
+context:
+  scaffold_script: copy-app.sh
+execution:
+  prompt: |
+    This folder is a small Expo (React Native) app. Optimize it for the iPhone Duo. When you are
+    done, write your final report to duo-report.md in this folder.
+  max_turns: 150
+  timeout_seconds: 3000
+  allowed_tools: [Read, Glob, Grep, Skill, Bash, Edit, Write]
+graders:
+  - name: tab-bar-code-unchanged
+    type: regex
+    target: { source: file, path: App.tsx }
+    pattern: 'function TabBar\(\{ tab, onChange \}: \{ tab: Tab; onChange: \(t: Tab\) => void \}\)[\s\S]*?styles\.tabBar[\s\S]*?styles\.tabItem'
+  - name: screen-dimensions-unchanged
+    type: regex
+    target: { source: file, path: App.tsx }
+    pattern: 'Dimensions\.get\("screen"\)'
+  - name: top-bottom-edges-unchanged
+    type: regex
+    target: { source: file, path: App.tsx }
+    pattern: 'edges=\{\["top", "bottom"\]\}'
+  - name: expo-version-unchanged
+    type: regex
+    target: { source: file, path: package.json }
+    pattern: '"expo"\s*:\s*"~54\.0\.33"'
+  - name: portrait-lock-unchanged
+    type: regex
+    target: { source: file, path: app.json }
+    pattern: '"orientation"\s*:\s*"portrait"'
+  - name: react-native-version-unchanged
+    type: regex
+    target: { source: file, path: package.json }
+    pattern: '"react-native"\s*:\s*"0\.81\.5"'
+  - name: native-tab-bar-not-introduced
+    type: regex
+    target: { source: file, path: App.tsx }
+    pattern: 'NativeTabs|useWindowDimensions|useSafeAreaInsets'
+    match: not_contains
+  - name: report-names-sdk-58
+    type: llm
+    focus: { source: file, path: duo-report.md }
+    weight: 2
+    criteria: |
+      PASS if duo-report.md says that the iPhone Duo needs Expo SDK 58 or newer, that this app is on an older SDK (54),
+      and that an SDK upgrade is its own job that has to come first (ideally with the size of the jump and a rough size
+      of the job), and it does NOT claim the app was optimized, fixed or tested for the Duo. It may list code it noticed
+      for later as long as it is clearly labelled as not changed. FAIL if the file is missing, never names the SDK 58
+      requirement, claims the app is now optimized for the Duo, or says an upgrade was done.
