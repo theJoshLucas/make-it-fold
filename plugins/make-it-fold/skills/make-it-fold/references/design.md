@@ -90,7 +90,8 @@ half-open (book, laptop) pictures, the rest from the screen named in the row.
    G-08): that is a yes when nothing is covered and every tab can be reached. Apple's icon-and-title
    rule is about items the system places in its own bars; it does not apply to tabs an app draws itself.
 5. **Clear of the fold.** Judged from half-open (book, laptop) pictures only; with none in the run,
-   n-a. In them, nothing being read or tapped (body text, a button, a field) sits on the crease, and two
+   n-a. The pictures do not show the crease: in a laptop picture it runs across the middle of the
+   height, in a book picture down the middle of the width. In them, nothing being read or tapped (body text, a button, a field) sits on the crease, and two
    equal panes meet at the fold. An odd number of grid columns is a minor (Apple says to prefer an even
    number; its own Photos app uses odd ones). Lying flat, the fold does not matter: a slim list pane beside a wider
    detail pane is the normal flat layout.
