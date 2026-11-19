@@ -1,0 +1,72 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; font: 17px/1.45 -apple-system, system-ui, sans-serif; color: #14213d; background: #f7f5f0; }
+h1, h2, p { margin: 0; }
+
+.app { min-height: 100dvh; display: flex; flex-direction: column; }
+.bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; background: #14213d; color: #ffffff;
+       padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }
+.bar h1 { font-size: 20px; }
+.back { font: inherit; color: #fca311; background: none; border: 0; padding: 10px 4px; min-height: 44px; }
+.app[data-view="list"] .back { display: none; }
+
+main { flex: 1; padding: 16px max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.app[data-view="list"] #detail-view { display: none; }
+.app[data-view="detail"] #list-view { display: none; }
+
+.stats { display: flex; justify-content: space-between; margin-bottom: 16px; }
+.stat b { display: block; font-size: 34px; line-height: 1.1; }
+.stat span { color: #5c6784; font-size: 14px; }
+
+.sessions { list-style: none; margin: 0 0 16px; padding: 0; background: #ffffff; border-radius: 14px; overflow: hidden; }
+.sessions li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; min-height: 56px; border-bottom: 1px solid #ece9e1; }
+.sessions li:last-child { border-bottom: 0; }
+.sessions li.on { background: #fff4dc; }
+.sessions .piece { font-weight: 600; }
+.sessions .when { color: #5c6784; font-size: 14px; }
+.sessions .min { font-variant-numeric: tabular-nums; color: #5c6784; }
+
+.primary { display: block; width: 100%; font: inherit; font-weight: 600; min-height: 50px; border: 0; border-radius: 14px; background: #fca311; color: #14213d; }
+.quiet { font: inherit; min-height: 50px; padding: 0 18px; border: 0; border-radius: 14px; background: #ece9e1; color: #14213d; }
+
+.detail { background: #ffffff; border-radius: 14px; padding: 18px 16px; }
+.detail h2 { font-size: 24px; }
+.meta { color: #5c6784; font-size: 14px; margin: 2px 0 12px; }
+.notes { margin-bottom: 16px; }
+label { display: block; font-size: 14px; color: #5c6784; margin: 12px 0 4px; }
+input, textarea { width: 100%; font: inherit; font-size: 17px; padding: 12px; border: 1px solid #d9d5ca; border-radius: 10px; background: #ffffff; color: #14213d; }
+.detail .primary { margin-top: 14px; }
+
+.scrim { position: fixed; inset: 0; z-index: 3; background: rgba(20, 33, 61, .45); }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; background: #f7f5f0; border-radius: 18px 18px 0 0;
+         padding: 18px max(16px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+         max-height: 100dvh; overflow-y: auto; }
+.sheet h2 { font-size: 20px; }
+.sheet .row { display: flex; gap: 12px; margin-top: 16px; }
+.sheet .row .primary { flex: 1; }
+[hidden] { display: none !important; }
+
+/* The Duo's inner screen (669 x 867 or 951 x 585 in Safari): list and session side by side.
+   Wide AND tall, so a phone turned sideways (wide but short) keeps the phone layout.
+   Everything above is the phone layout and is unchanged. */
+.empty { display: none; }
+@media (min-width: 620px) and (min-height: 480px) {
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  main { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .app[data-view="list"] #detail-view, .app[data-view="detail"] #list-view { display: block; }
+  .app .back { display: none; }
+  .app[data-view="list"] .detail { display: none; }
+  .app[data-view="list"] .empty { display: grid; place-items: center; min-height: 240px; color: #5c6784; background: #ffffff; border-radius: 14px; padding: 18px 16px; max-width: 600px; }
+  .detail { max-width: 600px; }
+  .notes { max-width: 62ch; }
+  .detail .primary { max-width: 320px; }
+  .sessions li { cursor: pointer; }
+  /* The form is a card over the page, not a tray as wide as the screen. */
+  .sheet { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); width: min(480px, calc(100% - 48px));
+           border-radius: 18px; padding: 20px; max-height: calc(100dvh - 48px); }
+}
+/* Sideways (951 px): the form sits on the trailing half, so the list stays in view and, with the
+   phone half-open like a book, nothing sits on the fold down the middle. */
+@media (min-width: 900px) and (min-height: 480px) {
+  .sheet { left: auto; right: 20px; top: 50%; transform: translateY(-50%); width: min(430px, calc(50% - 40px)); }
+  .scrim { background: rgba(20, 33, 61, .25); }
+}

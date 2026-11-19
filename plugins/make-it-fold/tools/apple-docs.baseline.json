@@ -1,0 +1,15 @@
+{
+ "written": "2026-11-18",
+ "pages": {
+  "arrangement-swiftui": "72e56cc5d0cfad4cf75813faeec91558c5526bbce3f5aafed174cd3f664c4e9f",
+  "arrangement-uikit": "ada9b5fa38fb521a1a428cc34dc0575e6a400ca4d84a3570b3e65e66567f9886",
+  "design": "2ff29800a4b3a876fb1e47bd2b9ac3c4cc1816cda1f9e79cf04ec29fae3960ab",
+  "fullscreen-key": "b358bf800602970c962d4bd2275e6ad5e5885473c79ffadbd3411dc82d85de3b",
+  "hinge": "6fe07fe83fed1c892b55f8f13592d13666e0ea3cbb309d0d5a20e4c0453f13a8",
+  "launch-screen": "7bafd600469cb038d86e1e8ae3a8dc69a6bcd13634fcb79c7e289548fc40e3ba",
+  "overview": "3f307048c7ece05487f00062d36755b8b6812f392fd9414b30d1725cdb2549d8",
+  "reserved-region": "f6b3aca1bcd389bade3b07010264fdb49733c249c6eb44523a84bcc7dc06e682",
+  "sheet-placement": "b503083e3de0da2838e20c4376b43b120108ca20a886bce3cb1fee5c8320ef9d",
+  "vertical-bar": "6b362e3b2ea44721b3ee849fd0b37280e53b8e0c7d46b500814b7c1429cc2523"
+ }
+}

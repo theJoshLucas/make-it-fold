@@ -16,3 +16,7 @@ layout never appears on the inner screen.
 4. **Orientation**: the inner display ignores supported orientations. iPad layouts that assume
    landscape-only or portrait-only must work both ways.
 5. Then follow `native.md` for bars, reserved regions, state across a fold and checks.
+6. **Design check.** The iPad layout was drawn for 768 points and up. On the inner screen (669 or
+   951 wide) score it with `design.md`: sidebars may need to be slimmer, three columns become two,
+   and the cover still needs a real compact layout, not the iPad one squeezed.
+

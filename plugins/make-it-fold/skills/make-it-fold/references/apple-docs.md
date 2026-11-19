@@ -1,23 +1,40 @@
-# Apple's docs: always read live
+# Apple's docs: fetched fresh on every run
 
-Apple changes these pages. Fetch the one or two a job needs, at the time of the job. Apple serves
-its documentation as Markdown: add `.md` to a `developer.apple.com/documentation/...` URL. If a
-fetch fails, say so in the report; never fill the gap from memory.
+`${CLAUDE_PLUGIN_ROOT}/scripts/duo-docs` downloads Apple's current Duo pages at the start of every
+job and keeps a copy on this computer. It prints one line per page:
 
-| Problem | Page |
+- **READ**: Apple's overview and Apple's design rules. Read both on every job, from the path shown
+  (`duo-docs path overview`, `duo-docs path design`). The line also says if Apple changed them.
+- **changed**: a topic page Apple has edited since this plugin's recipes were written, or since your
+  last job. Read it if the job touches that topic.
+- **same**: unchanged since the recipes were written. Read it only when the job needs that topic.
+- **offline**: Apple could not be reached. A saved copy is used and its date is shown; with no
+  copy, say in the report "Apple's live pages could not be reached" and never fill the gap from memory.
+
+It also lists **links that are new** on Apple's two main Duo pages since the last run: pages Apple
+has added. Open any that touch this job (add `.md` to a `developer.apple.com/documentation/...`
+address to get plain text).
+
+If a live page disagrees with a recipe or with `design.md`, Apple wins: follow Apple, name the
+stale recipe in the report, and save the lesson with `duo-notes add`.
+
+| Name | What it is for |
 |---|---|
-| Overview: everything Apple wants for the Duo | https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo.md |
-| Apple's three-step checklist | https://developer.apple.com/iphone-duo/prepare/ |
-| Design rules (poses, columns, reserved regions) | https://developer.apple.com/design/human-interface-guidelines/designing-for-iphone-duo |
-| The vertical bar (which edge, how to read it) | https://developer.apple.com/documentation/uikit/uiverticalbaredge.md |
-| Camera and fold areas content must avoid | https://developer.apple.com/documentation/uikit/uiviewreservedregion.md |
-| Hinge angle and status (optional features) | https://developer.apple.com/documentation/uikit/uihinge.md and https://developer.apple.com/documentation/uikit/uihingeinteraction.md |
-| Two-pane layouts that adapt (split / overlay) | https://developer.apple.com/documentation/uikit/uiarrangementviewcontroller.md |
-| `UIRequiresFullScreen` going away | https://developer.apple.com/documentation/technotes/tn3192-migrating-your-app-from-the-deprecated-uirequiresfullscreen-key.md |
-| Launch screen required (ITMS-90870) | https://developer.apple.com/documentation/technotes/tn3208-preparing-your-apps-launch-screen-to-meet-app-store-requirements.md |
-| App Store screenshot sizes | https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/ |
-| Safari on the Duo (sizes, feature flags) | https://webkit.org/blog/ (search "Safari 27.1") |
-| Duo tech talks (videos with transcripts) | https://developer.apple.com/videos/ (search "iPhone Duo") |
+| `overview` (every job) | Everything Apple wants for the Duo: resizing, bars, arrangement views, reserved regions |
+| `design` (every job) | The design rules: two screens, poses, the side rail, reserved regions, split and arrangement views |
+| `arrangement-swiftui`, `arrangement-uikit` | Two views that re-arrange around the fold |
+| `reserved-region` | Camera and fold areas content must avoid |
+| `vertical-bar` | Which edge the rail is on, and how to read it |
+| `sheet-placement` | Putting a sheet on one side of the inner screen |
+| `hinge` | Hinge angle and status (optional features) |
+| `fullscreen-key` | `UIRequiresFullScreen` going away |
+| `launch-screen` | Launch screen required (ITMS-90870) |
+
+Not fetched automatically (open when needed): Apple's three-step checklist
+(https://developer.apple.com/iphone-duo/prepare/), App Store screenshot sizes
+(https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/),
+Safari on the Duo (https://webkit.org/blog/, search "Safari 27.1"), and the Duo tech talks
+(https://developer.apple.com/videos/, search "iPhone Duo").
 
 ## Apple's own agent skills (native apps)
 Xcode 27.1+ ships Apple-written skills, including `app-resizability` ("get my app ready for

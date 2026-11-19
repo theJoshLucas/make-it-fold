@@ -30,7 +30,8 @@ switch from the space the component actually needs, then test just below and abo
 threshold. With Tailwind's defaults: 594 is below `sm` (640), 669 is `sm` but not `md` (768),
 951 is `md` but not `lg` (1024). That is a risk to check, not a bug to "fix" by default.
 - Never lay out by `screen.width`/`screen.height` (they report the cover size on the inner screen),
-  by orientation media queries, or by device type. Use the viewport width, container queries
+  by orientation media queries, or by device type. Do not keep one of these "for phones" beside a
+  new wide rule: replace it with a width rule that gives phones the same result. Use the viewport width, container queries
   (`@container`), or the element's own size (`ResizeObserver`).
 - No fixed widths wider than 382 px. Wide content scrolls inside its own box, not the page.
 
@@ -57,3 +58,32 @@ simulator reports a plain iPhone user agent; the real phone is unconfirmed.
 Cover landscape is only 368 px tall with toolbars shown. Pinned headers plus pinned footers plus a
 banner can leave almost nothing. Check the main action is visible without scrolling there, with the
 keyboard open on any form (keyboards cover content without changing `vh`/`dvh`/`innerHeight`).
+
+## duo-native layout
+The phone layout stays exactly as it is below about 600 px. Add wide rules for the inner screen
+(669 and 951 px wide). `design.md` has the pattern for each kind of screen.
+- **Switch on the room the layout needs: wide AND tall.**
+  `@media (min-width: 620px) and (min-height: 480px)` matches the inner screen both ways (669 x 867,
+  951 x 585) and leaves out the cover sideways (594 x 368) and an ordinary iPhone turned sideways
+  (about 850 x 390), which would otherwise get the new layout too (trap G-07). A plain width rule
+  or a container query is fine when the person wants sideways phones and tablets to change as well:
+  say which you chose. Short screens keep one pane with slim chrome (`@media (max-height: 420px)`).
+- **Two panes:** `display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr)`.
+  List plus detail keeps both in the page: narrow shows one at a time, wide shows both. The
+  selection and any typed text live in the app's state, so a fold re-lays out and rebuilds nothing.
+- **Peers split in the middle.** A web page cannot tell half-open from open, so when two panes are
+  equals (content and controls, two charts) use `1fr 1fr` at 900 px and up: the gutter then sits on
+  the fold. Grids use an even number of columns.
+- **Width limits:** text `max-width: 65ch`; forms, buttons and single cards `max-width: 560px`.
+  No control stretched across 951 px.
+- **Dialogs and sheets:** a bottom sheet when narrow; a side panel or a centred card
+  (`max-width: 560px`) when wide; menus anchored to their button.
+- **Same sizes:** no `vw`-based font sizes, no zoom or scale to fill the screen. Safari itself
+  enlarges text in wide blocks on the inner screen sideways unless the page says
+  `-webkit-text-size-adjust: 100%; text-size-adjust: 100%` (trap G-13): set it in the wide rules.
+- **Check:** `duo-shot web` prints design notes for each pose (one column on a wide screen,
+  stretched controls, long lines, unused width, small touch targets). They are prompts for the
+  scorecard, not failures: look at the picture and decide.
+- **Normal-phone check** now has three sizes: 390 px upright, a phone sideways (about 850 x 390)
+  and the app's desktop width. All three must match "before".
+

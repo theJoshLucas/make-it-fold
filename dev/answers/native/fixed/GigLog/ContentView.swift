@@ -2,41 +2,85 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var store = GigStore()
+    // The open gig lives above the layout switch, so it survives a fold.
+    @State private var selection: Gig.ID?
+    @Environment(\.horizontalSizeClass) private var widthClass
+    @Environment(\.verticalSizeClass) private var heightClass
 
     var body: some View {
         GeometryReader { proxy in
-            content(width: proxy.size.width)
+            // Regular width AND regular height: the Duo's inner screen (and tablets). An ordinary
+            // iPhone, even a large one held sideways, keeps the one-pane layout it always had.
+            if widthClass == .regular && heightClass == .regular {
+                twoPanes(width: proxy.size.width)
+            } else {
+                onePane(width: proxy.size.width)
+            }
         }
     }
 
-    private func content(width: CGFloat) -> some View {
-        let wide = width > 500
-        return NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                List(store.gigs) { gig in
+    // Cover screen and ordinary iPhones: the list, pushing to the open gig.
+    private func onePane(width: CGFloat) -> some View {
+        NavigationStack(path: Binding(get: { selection.map { [$0] } ?? [] }, set: { selection = $0.last })) {
+            gigList(width: width, pushes: true)
+                .navigationDestination(for: Gig.ID.self) { id in
+                    DetailView(store: store, gigID: id, wide: width > 500)
+                }
+        }
+    }
+
+    // Inner screen: the list on the leading side, the open gig beside it.
+    private func twoPanes(width: CGFloat) -> some View {
+        let listWidth = min(340, max(280, width * 0.36))
+        return HStack(spacing: 0) {
+            NavigationStack {
+                gigList(width: listWidth, pushes: false)
+            }
+            .frame(width: listWidth)
+            Divider()
+            NavigationStack {
+                if let id = selection, store.gigs.contains(where: { $0.id == id }) {
+                    DetailView(store: store, gigID: id, wide: width - listWidth > 500)
+                        .id(id)
+                } else {
+                    ContentUnavailableView("No gig selected", systemImage: "music.note.list")
+                }
+            }
+        }
+    }
+
+    private func gigList(width: CGFloat, pushes: Bool) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            List(store.gigs) { gig in
+                if pushes {
                     NavigationLink(value: gig.id) {
                         GigRow(gig: gig, width: width - 64)
                     }
+                } else {
+                    Button {
+                        selection = gig.id
+                    } label: {
+                        GigRow(gig: gig, width: width - 64)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(selection == gig.id ? Color.indigo.opacity(0.14) : nil)
                 }
-                Button {
-                    store.addGig()
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
-                        .frame(width: 56, height: 56)
-                        .background(Circle().fill(Color.indigo))
-                        .shadow(radius: 4, y: 2)
-                }
-                .accessibilityLabel("Add gig")
-                .padding(.trailing, 20)
-                .padding(.bottom, 20)
             }
-            .navigationTitle("Gig Log")
-            .navigationDestination(for: Gig.ID.self) { id in
-                DetailView(store: store, gigID: id, wide: wide)
+            Button {
+                store.addGig()
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(Circle().fill(Color.indigo))
+                    .shadow(radius: 4, y: 2)
             }
+            .accessibilityLabel("Add gig")
+            .padding(.trailing, 20)
+            .padding(.bottom, 20)
         }
+        .navigationTitle("Gig Log")
     }
 }
 
@@ -51,6 +95,6 @@ struct GigRow: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-        .frame(width: width, alignment: .leading)
+        .frame(width: max(width, 100), alignment: .leading)
     }
 }

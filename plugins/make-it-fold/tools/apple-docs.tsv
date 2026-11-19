@@ -1,0 +1,11 @@
+# name	core?	address	what it is for
+overview	core	https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo.md	Everything Apple wants for the Duo: resizing, bars, arrangement views, reserved regions
+design	core	https://developer.apple.com/design/human-interface-guidelines/designing-for-iphone-duo.md	Apple's design rules for the Duo
+arrangement-swiftui	topic	https://developer.apple.com/documentation/swiftui/arrangementview.md	Two views that re-arrange around the fold (SwiftUI)
+arrangement-uikit	topic	https://developer.apple.com/documentation/uikit/uiarrangementviewcontroller.md	Two views that re-arrange around the fold (UIKit)
+reserved-region	topic	https://developer.apple.com/documentation/swiftui/reservedregion.md	Camera and fold areas content must avoid
+vertical-bar	topic	https://developer.apple.com/documentation/uikit/uiverticalbaredge.md	Which edge the side rail is on
+sheet-placement	topic	https://developer.apple.com/documentation/swiftui/view/presentationplacement(_:).md	Where a sheet sits on the inner screen
+hinge	topic	https://developer.apple.com/documentation/uikit/uihinge.md	Hinge angle and status
+fullscreen-key	topic	https://developer.apple.com/documentation/technotes/tn3192-migrating-your-app-from-the-deprecated-uirequiresfullscreen-key.md	UIRequiresFullScreen going away
+launch-screen	topic	https://developer.apple.com/documentation/technotes/tn3208-preparing-your-apps-launch-screen-to-meet-app-store-requirements.md	Launch screen required (ITMS-90870)

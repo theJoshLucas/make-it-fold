@@ -1,0 +1,103 @@
+schema_version: '1.1'
+name: web-woodshed-native
+description: 'Practice web app (Woodshed) that already FITS the iPhone Duo in every pose but is a phone layout
+  stretched across the inner screen. Nothing is broken; the right answer is a Duo-native layout (see dev/answers/
+  in the source repo, which the agent never sees). A fresh session is told only to optimize it for the Duo.
+
+  '
+tags:
+- web
+- fully-tested
+- design
+plugins:
+- ../..
+runs: 1
+context:
+  scaffold_script: copy-app.sh
+execution:
+  prompt: 'This folder is a small web app (open index.html; there is no build step). Optimize it for the
+
+    iPhone Duo. When you are done, write your final report to duo-report.md in this folder.
+
+    '
+  max_turns: 140
+  timeout_seconds: 2700
+  allowed_tools:
+  - Read
+  - Glob
+  - Grep
+  - Skill
+  - Bash
+  - Edit
+  - Write
+graders:
+- name: P1-has-a-wide-layout-rule
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: '@(media|container)[^{]*min-width:\s*(5[6-9]\d|6\d\d|7[0-6]\d)px|@(media|container)[^{]*width\s*>=?\s*(5[6-9]\d|6\d\d|7[0-6]\d)px'
+- name: P2-phone-shell-kept
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: '^\.sheet\s*\{[^}]*position:\s*fixed;[^}]*left:\s*0;[^}]*right:\s*0;[^}]*bottom:'
+  flags: m
+- name: P3-colors-kept
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: (?=[\s\S]*#14213d)(?=[\s\S]*#fca311)(?=[\s\S]*#f7f5f0)
+- name: P4-screens-and-wording-kept
+  type: regex
+  target:
+    source: file
+    path: index.html
+  pattern: (?=[\s\S]*id="list-view")(?=[\s\S]*id="detail-view")(?=[\s\S]*id="sheet")(?=[\s\S]*Add a practice session)(?=[\s\S]*Save session)(?=[\s\S]*Next time, work on)
+- name: P5-no-type-scaling
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: 'font(-size)?:[^;]*\d(vw|vmin|vmax|cqw)|zoom:|transform:\s*scale\('
+  match: not_contains
+- name: P6-inputs-still-16px
+  type: regex
+  target:
+    source: file
+    path: style.css
+  pattern: (input|textarea)[^{]*\{[^}]*font-size:\s*1[0-5]px
+  match: not_contains
+- name: native-layout
+  type: llm
+  focus:
+    source: file
+    path: style.css
+  weight: 3
+  criteria: "PASS only if ALL hold in this style.css:\n(a) in rules that apply at widths of roughly 600 px and
+    up (a min-width media query or a container query), the session list (#list-view / .sessions) and the session
+    detail (#detail-view / .detail) are laid out side by side, for example with a grid or a flex row, instead of
+    one replacing the other;\n(b) at those widths the new-session form (.sheet) is no longer a tray spanning the
+    full width: it has a width limit or sits as a side panel or centred card;\n(c) at those widths long text or
+    the primary buttons get a width limit, so they are not stretched across the whole screen;\n(d) the rules
+    outside the wide block still give the original single-column phone layout (the list and detail still swap by
+    data-view, and .sheet is still a bottom tray by default).\nFAIL if any one is missing, or if colors or fonts
+    were changed.\n"
+- name: scorecard-report
+  type: llm
+  focus:
+    source: file
+    path: duo-report.md
+  weight: 2
+  criteria: 'PASS if duo-report.md (1) says per screen how it is now laid out on the cover and on the inner screen,
+    (2) has a scorecard or verdict line for each screen covering both the cover and the inner screen, (3) is honest
+    about how the design was judged: if no simulator or browser pictures were taken it says the design was built
+    or read from code and not seen, and does not present any screen as verified "native" from pictures it could
+    not have taken, and (4) lists what still needs a real phone or could not be checked.
+
+    FAIL if it claims simulator, screenshot or device proof the run could not have produced, if it only reports
+    that nothing is broken with no design verdicts, or if the file is missing.
+
+    '

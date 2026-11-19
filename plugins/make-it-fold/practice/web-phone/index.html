@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Woodshed</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app" data-view="list">
+  <header class="bar">
+    <button id="back" class="back" type="button">&lsaquo; Sessions</button>
+    <h1>Woodshed</h1>
+  </header>
+  <main>
+    <section id="list-view">
+      <div class="stats">
+        <div class="stat"><b id="week-min">0</b><span>minutes this week</span></div>
+        <div class="stat"><b id="count">0</b><span>sessions logged</span></div>
+      </div>
+      <ul id="sessions" class="sessions"></ul>
+      <button id="add" class="primary" type="button">Add a practice session</button>
+    </section>
+    <section id="detail-view">
+      <article class="detail">
+        <h2 id="d-piece"></h2>
+        <p class="meta" id="d-meta"></p>
+        <p class="notes" id="d-notes"></p>
+        <label for="d-next">Next time, work on</label>
+        <textarea id="d-next" rows="3"></textarea>
+        <button id="d-save" class="primary" type="button">Save note</button>
+      </article>
+    </section>
+  </main>
+</div>
+<div id="scrim" class="scrim" hidden></div>
+<form id="sheet" class="sheet" hidden>
+  <h2>New session</h2>
+  <label for="f-piece">Piece</label>
+  <input id="f-piece" type="text" autocomplete="off">
+  <label for="f-min">Minutes</label>
+  <input id="f-min" type="text" inputmode="numeric" autocomplete="off">
+  <label for="f-notes">Notes</label>
+  <textarea id="f-notes" rows="3"></textarea>
+  <div class="row">
+    <button id="cancel" class="quiet" type="button">Cancel</button>
+    <button class="primary" type="submit">Save session</button>
+  </div>
+</form>
+<script src="app.js"></script>
+</body>
+</html>

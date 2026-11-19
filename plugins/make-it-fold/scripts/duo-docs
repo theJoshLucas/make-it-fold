@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""duo-docs: download Apple's current iPhone Duo pages, every run, and say what to read.
+
+  duo-docs                 fetch every page, print one line per page (READ / same / changed / offline)
+  duo-docs path <name>     print where the saved copy of one page is (for reading it)
+  duo-docs --json          the same report as JSON
+  duo-docs --write-baseline   (plugin maintainers) record today's pages as what the recipes were written from
+
+The pages are listed in tools/apple-docs.tsv. Copies are kept in ~/.cache/make-it-fold/apple-docs/.
+The two "core" pages (Apple's overview and Apple's design rules) are marked READ on every run: a
+Duo job always reads them fresh. Topic pages are marked "changed" when Apple has edited them since
+this plugin's recipes were written or since the last run on this computer.
+It also lists links that are new on the core pages since the last run (pages Apple has added).
+Only developer.apple.com is contacted, with no cookies and nothing about this computer.
+"""
+import hashlib
+import json
+import os
+import re
+import sys
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+LIST = ROOT / "tools" / "apple-docs.tsv"
+BASELINE = ROOT / "tools" / "apple-docs.baseline.json"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold" / "apple-docs"
+ALLOWED_HOST = "https://developer.apple.com/"
+LINK = re.compile(r"doc://com\.apple\.documentation(/[\w\-./()_:]+)|\]\((/(?:documentation|design)/[\w\-./()_:#]+)\)")
+
+
+def pages():
+    out = []
+    for line in LIST.read_text().splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        name, kind, url, what = line.split("\t")
+        if not url.startswith(ALLOWED_HOST):
+            raise SystemExit(f"duo-docs: {name} is not an Apple developer page; refusing to fetch it")
+        out.append({"name": name, "core": kind == "core", "url": url, "what": what})
+    return out
+
+
+def fetch(page):
+    try:
+        req = urllib.request.Request(page["url"], headers={"User-Agent": "make-it-fold"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            body = r.read()
+        if len(body) < 200 or b"<html" in body[:400].lower():
+            return None, "Apple did not return the page text"
+        return body, None
+    except Exception as e:  # offline, timeout, 404: all mean "use the saved copy"
+        return None, str(e)[:120]
+
+
+def load(p, default):
+    try:
+        return json.loads(p.read_text())
+    except (OSError, ValueError):
+        return default
+
+
+def writable_cache():
+    """The usual cache folder, or a temporary one when this session may not write there (a sandbox)."""
+    global CACHE
+    try:
+        CACHE.mkdir(parents=True, exist_ok=True)
+        probe = CACHE / ".write-test"
+        probe.write_text("")
+        probe.unlink()
+    except OSError:
+        import tempfile
+        CACHE = Path(tempfile.gettempdir()) / "make-it-fold-apple-docs"
+        CACHE.mkdir(parents=True, exist_ok=True)
+
+
+def run(write_baseline=False):
+    writable_cache()
+    state = load(CACHE / "state.json", {})
+    base = load(BASELINE, {"written": "unknown", "pages": {}})
+    today = date.today().isoformat()
+    todo = pages()
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        bodies = list(ex.map(fetch, todo))
+    report, links_now = [], set()
+    for page, (body, err) in zip(todo, bodies):
+        name, path = page["name"], CACHE / f"{page['name']}.md"
+        old = state.get(name, {})
+        row = {"name": name, "core": page["core"], "what": page["what"], "path": str(path), "url": page["url"]}
+        if body is None:
+            row["have_copy"] = path.exists()
+            row["status"] = "READ" if page["core"] and path.exists() else "offline"
+            row["offline"] = True
+            row["note"] = (f"could not reach Apple ({err}); this is the copy saved {old.get('fetched')}" if path.exists()
+                           else f"could not reach Apple ({err}) and there is no saved copy")
+            report.append(row)
+            continue
+        sha = hashlib.sha256(body).hexdigest()
+        path.write_bytes(body)
+        changed_since_run = bool(old.get("sha")) and old["sha"] != sha
+        changed_since_recipes = name in base["pages"] and base["pages"][name] != sha
+        unknown_to_recipes = name not in base["pages"]
+        state[name] = {"sha": sha, "fetched": today,
+                       "changed": today if changed_since_run else old.get("changed")}
+        why = []
+        if changed_since_run:
+            why.append(f"Apple changed it since your last job ({old.get('fetched')})")
+        if changed_since_recipes:
+            why.append(f"Apple changed it since this plugin's recipes were written ({base['written']}): Apple wins")
+        if unknown_to_recipes and not write_baseline:
+            why.append("newer than this plugin's recipes")
+        if page["core"]:
+            row["status"] = "READ"
+            row["note"] = "; ".join(why) or "read fresh on every job"
+        elif why:
+            row["status"] = "changed"
+            row["note"] = "; ".join(why) + ". Read it if the job touches this topic"
+        else:
+            row["status"] = "same"
+            row["note"] = "unchanged since the recipes were written; read only if the job needs this topic"
+        if page["core"]:
+            for m in LINK.finditer(body.decode("utf-8", "replace")):
+                links_now.add((m.group(1) or m.group(2)).lower().split("#")[0])
+        report.append(row)
+    seen = set(load(CACHE / "links.json", []))
+    new_links = sorted(links_now - seen) if seen else []
+    if links_now:
+        (CACHE / "links.json").write_text(json.dumps(sorted(seen | links_now)))
+    (CACHE / "state.json").write_text(json.dumps(state, indent=1))
+    if write_baseline:
+        missing = [r["name"] for r in report if r.get("offline")]
+        if missing:
+            raise SystemExit(f"duo-docs: could not fetch {', '.join(missing)}; baseline not written")
+        BASELINE.write_text(json.dumps({"written": today, "pages": {n: state[n]["sha"] for n in sorted(state) if n in {p['name'] for p in todo}}}, indent=1) + "\n")
+    return {"date": today, "recipes_written": base["written"], "pages": report, "new_links": new_links}
+
+
+def main():
+    args = sys.argv[1:]
+    if "-h" in args or "--help" in args:
+        print(__doc__.strip())
+        return
+    if args[:1] == ["path"]:
+        names = {p["name"] for p in pages()}
+        if len(args) != 2 or args[1] not in names:
+            raise SystemExit("duo-docs path <name>   names: " + ", ".join(sorted(names)))
+        p = CACHE / f"{args[1]}.md"
+        if not p.exists():
+            raise SystemExit(f"duo-docs: no saved copy of {args[1]} yet; run duo-docs first")
+        print(p)
+        return
+    res = run(write_baseline="--write-baseline" in args)
+    if "--json" in args:
+        print(json.dumps(res, indent=2))
+        return
+    print(f"Apple's iPhone Duo pages, fetched {res['date']} (plugin recipes written {res['recipes_written']})\n")
+    for r in res["pages"]:
+        print(f"  {r['status']:8} {r['name']}: {r['what']}")
+        print(f"           {r['note']}")
+        if not r.get("offline") or r.get("have_copy"):
+            print(f"           {r['path']}")
+    if res["new_links"]:
+        print("\nNew on Apple's Duo pages since your last job (open any that touch this job; add .md for plain text):")
+        for l in res["new_links"][:25]:
+            print(f"  https://developer.apple.com{l}")
+    if any(r.get("offline") for r in res["pages"]):
+        print("\nSome pages could not be fetched fresh. Say so in the report; never fill the gap from memory.")
+    if any(r["status"] == "READ" for r in res["pages"]):
+        print("\nRead every page marked READ now (use the path shown).")
+
+
+if __name__ == "__main__":
+    main()

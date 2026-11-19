@@ -1,12 +1,12 @@
 {
   "name": "make-it-fold",
   "displayName": "Make It Fold",
-  "version": "0.1.0",
-  "description": "Make websites and iPhone/iPad apps work on Apple's foldable iPhone Duo: scan the app, fix only what's broken, and prove it in every fold position on the Duo simulator.",
+  "version": "0.2.0",
+  "description": "Make websites and iPhone/iPad apps look and work like they were designed for Apple's foldable iPhone Duo: fix what breaks, lay out every screen for both Duo screens, and prove it with scored pictures of every fold position on the Duo simulator. Also starts new Duo apps from scratch.",
   "author": { "name": "Josh Lucas" },
   "homepage": "https://github.com/theJoshLucas/make-it-fold",
   "repository": "https://github.com/theJoshLucas/make-it-fold",
   "license": "MIT",
-  "keywords": ["iphone-duo", "foldable", "ios", "responsive", "safari", "swiftui", "uikit", "expo", "simulator"],
+  "keywords": ["iphone-duo", "foldable", "ios", "design", "responsive", "safari", "swiftui", "uikit", "expo", "simulator"],
   "experimental": { "evals": "evals" }
 }

@@ -1,0 +1,33 @@
+{
+  "backend": "mocked",
+  "paths": ["/"],
+  "steps": {
+    "/": [
+      {"pose": "cover-portrait"},
+      {"tap": "#sessions li"},
+      {"expect_visible": "#d-next"},
+      {"type": ["#d-next", "Half-typed note"]},
+      {"name": "session open"},
+      {"pose": "cover-portrait"},
+      {"pose": "inner-landscape"},
+      {"expect_value": ["#d-next", "Half-typed note"]},
+      {"expect_visible": "#sessions"},
+      {"pose": "inner-portrait"},
+      {"expect_value": ["#d-next", "Half-typed note"]},
+      {"pose": "book"},
+      {"pose": "cover-portrait"},
+      {"expect_value": ["#d-next", "Half-typed note"]},
+      {"tap": "#back"},
+      {"tap": "#add"},
+      {"type": ["#f-piece", "Half-typed piece"]},
+      {"name": "new-session form"},
+      {"pose": "cover-portrait"},
+      {"pose": "inner-landscape"},
+      {"expect_value": ["#f-piece", "Half-typed piece"]},
+      {"expect_visible": "#sheet button[type=submit]"},
+      {"pose": "inner-portrait"},
+      {"pose": "cover-portrait"},
+      {"expect_value": ["#f-piece", "Half-typed piece"]}
+    ]
+  }
+}

@@ -75,13 +75,13 @@ graders:
     source: file
     path: app.js
   pattern: (?<![\s\S])(?![\s\S]*innerHeight)|addEventListener\(\s*['"]resize['"]|visualViewport
-- name: no-redesign-sections-kept
+- name: look-kept-sections-kept
   type: regex
   target:
     source: file
     path: index.html
   pattern: (?=[\s\S]*Practice Timer)(?=[\s\S]*id="toggle")(?=[\s\S]*>Start<)(?=[\s\S]*>Today<)(?=[\s\S]*class="tabbar")(?=[\s\S]*>Goals<)
-- name: no-redesign-colors-kept
+- name: look-kept-colors-kept
   type: regex
   target:
     source: file

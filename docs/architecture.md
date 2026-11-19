@@ -5,15 +5,21 @@ A Claude Code plugin, published from this repo as its own marketplace.
 ## Layout
 - `.claude-plugin/marketplace.json`: the marketplace (one plugin, source `./plugins/make-it-fold`).
 - `plugins/make-it-fold/`: everything users install.
-  - `skills/make-it-fold/SKILL.md`: the job (setup, scan, route, before, fix, after, report, traps loop).
-    `references/*.md` are read on demand only; `traps/*.md` hold the trap notebook (no private sources).
-  - `commands/duo.md`, `duo-setup.md`, `duo-shot.md`: the three slash commands.
+  - `skills/make-it-fold/SKILL.md`: the job (setup and fresh knowledge, scan, route, before, design review
+    and layout plan, build, after, report, learn). Two bars: it fits (the floor) and it is native (the goal).
+    `references/*.md` are read on demand only; `references/design.md` (the scorecard and the layout
+    patterns) and `traps/design.md` are read by every job except a fit-only one. `traps/*.md` hold the
+    trap notebook (no private sources).
+  - `commands/duo.md` (native by default, `fit` for fit-only), `duo-new.md`, `duo-setup.md`, `duo-shot.md`.
   - `scripts/`: `duo-setup` (checks the Mac, installs the pinned duoctl, creates "Duo Kit"),
     `duo-sim` (poses via duoctl, verified from duoctl's readback; refuses a duoctl copy that is not
     exactly the pinned commit; two locks, see below),
     `duo-scan` (static suspects + surfaces + which recipes to read),
     `duo-shot` (web: proxies the app through `duo-listen`, injects `duo-reporter.js`, measures in every pose;
-    native: install, launch, screenshot every pose), `duo-listen` (localhost-only server/proxy), `duo-reporter.js`.
+    native: install, then one launch per scenario screen (launch arguments, environment values, a link,
+    taps) and a screenshot of each in every pose; `compare` puts two runs side by side),
+    `duo-listen` (localhost-only server/proxy), `duo-reporter.js`,
+    `duo-docs` (downloads Apple's Duo pages on every run; see below), `duo-notes` (the local lessons notebook).
   - `tools/duoctl.pin`: the reviewed duoctl commit. `/duo-setup` clones exactly that commit into
     `~/.cache/make-it-fold/duoctl/<sha>`.
   - `probe/index.html`: the Duo Screen Check page. Recognises the five positions from the page's own size,
@@ -28,6 +34,28 @@ Simulator Safari -> `http://localhost:8787/...` -> `duo-listen` (proxy) -> the a
 HTML responses get `<script src="/__duo/reporter.js">`. The reporter posts measurements on load and resize and
 answers commands (rect, value, setValue, text, calibrate) by polling `/__duo/cmd`. Taps are real taps through
 duoctl, mapped from page pixels to screen points with one calibration tap on a transparent pane.
+
+## Fit issues and design notes are different things
+`duo-shot` counts **issues** (something is cut off, covered, lost or reloaded) and its exit code follows
+them. It also prints **design notes** from `duo-reporter.js` (one column on a wide screen, controls wider
+than 560 px, lines past about 95 characters, under 60% of the width used, touch targets under 44 px, and
+type that is bigger on the inner screen than on the cover). Notes never change the exit code: they are
+prompts. Design is judged by whoever runs the job, from the pictures, in the `review.md` scorecard that
+every run writes (one block per screen, a row for the cover and one for the inner screen). Native runs have
+no measured notes at all, only pictures.
+
+## Fresh knowledge on every run
+- `duo-docs` reads `tools/apple-docs.tsv` (name, core or topic, address, purpose), fetches each page from
+  developer.apple.com (nothing else, no cookies), and saves it in `~/.cache/make-it-fold/apple-docs/` (a
+  temporary folder when that is not writable). The two core pages are always marked READ. A topic page is
+  marked "changed" when its hash differs from `tools/apple-docs.baseline.json` (what the recipes were written
+  from; rewritten by `duo-docs --write-baseline` whenever the recipes are brought up to date) or from the
+  last run on this computer. New links on the core pages since the last run are listed.
+- `duo-notes` keeps `~/.config/make-it-fold/notebook.md`: one entry per lesson, numbered L-001 and up. It
+  refuses entries that hold a key, an email address or a home-folder path, and skips a repeated title.
+  The notebook is outside the plugin folder, so it survives updates.
+- `duo-setup` compares this copy's version with the one on `main` (4 second limit, silent when offline)
+  and prints the update line when a newer one is out.
 
 ## Two locks, one simulator
 There is one "Duo Kit" simulator per Mac, and several Claude sessions may want it.
@@ -53,4 +81,5 @@ There is one "Duo Kit" simulator per Mac, and several Claude sessions may want i
 
 ## Measured facts
 Device and Safari numbers live in `plugins/make-it-fold/skills/make-it-fold/references/facts.md`
-(measured 2026-11-09, Xcode 27.2 / iOS 27.2 simulator).
+(measured 2026-11-09, Xcode 27.2 / iOS 27.2 simulator). `references/design.md` is the plugin's own summary of
+Apple's design page as of the baseline date; the live page wins.

@@ -9,4 +9,6 @@ Run `${CLAUDE_PLUGIN_ROOT}/scripts/duo-setup` and show the checklist in plain wo
 - Anything bigger (a macOS update, installing or updating Xcode, the multi-GB simulator download
   with `xcodebuild -downloadPlatform iOS`) needs the person's yes first: say what it is, how big,
   and that macOS and Xcode updates need their password.
+- If it says a newer make-it-fold is out, pass on the update line it prints, and that updates
+  only arrive by themselves after auto-update is switched on for this marketplace.
 - When everything needed is OK, say "Ready for Duo jobs" and suggest `/duo` inside an app's folder.

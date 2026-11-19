@@ -32,7 +32,9 @@ Do not report a task complete until ALL of:
 
 Project done-check: a script change is proven on the Duo simulator against the practice apps
 (`duo-shot web` on `practice/web` reports issues; on `dev/answers/web/fixed` it reports none).
-A skill, recipe or trap change is proven by rerunning the exam case it affects.
+A skill, recipe or trap change is proven by rerunning the exam case it affects. A change to what
+"done" means is also run once on a real app, and its pictures are judged for design, not only fit:
+the plugin's own first version passed every exam while telling agents never to change a layout.
 
 ## 4. PERMISSIONS
 - Always OK: read anything, run `dev/check`, edit source.
@@ -65,5 +67,11 @@ enshrined. EXCEPTION: a failure that reaches a user becomes a trap entry on stri
 - An existing install only picks up a change when `version` in
   `plugins/make-it-fold/.claude-plugin/plugin.json` goes up and the user updates the plugin.
   A push without a version bump reaches new installs only.
+- Updates are NOT automatic for users by default: Claude Code leaves auto-update off for marketplaces
+  that are not Anthropic's, and `marketplace.json` has no switch for it. Each user turns it on once
+  (`/plugin` > Marketplaces > make-it-fold > Enable auto-update) or runs the two update commands.
+  Never tell someone an update "will arrive by itself" without knowing they switched it on.
+- When recipes are rewritten from Apple's pages, run `plugins/make-it-fold/scripts/duo-docs --write-baseline`
+  in the same change.
 - "Shipped" means: a fresh `/plugin marketplace add` + `/plugin install` from GitHub loads the
   change. Check that, not the local folder.

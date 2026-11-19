@@ -25,6 +25,10 @@ final class GigStore: ObservableObject {
         Gig(title: "Wedding, Hall B", venue: "Riverside Banquet", date: "Sat, Dec 20", loadIn: "3:15 PM", notes: "First dance is a slow version of September.")
     ]
 
+    // Half-typed notes, kept here so they survive a fold: the detail view is laid out differently
+    // on each screen, and a note still being typed must not belong to one layout.
+    @Published var drafts: [Gig.ID: String] = [:]
+
     func addGig() {
         gigs.insert(Gig(title: "New gig", venue: "TBD", date: "Date TBD"), at: 0)
     }

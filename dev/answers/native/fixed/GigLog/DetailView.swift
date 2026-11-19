@@ -7,21 +7,24 @@ struct DetailView: View {
 
     @State private var renaming = false
     @State private var newTitle = ""
-    @State private var draft = ""
 
     private var gig: Gig? { store.gigs.first { $0.id == gigID } }
+
+    // The half-typed note lives in the store, above every layout, so a fold keeps it.
+    private var draft: Binding<String> {
+        Binding(get: { store.drafts[gigID] ?? gig?.notes ?? "" }, set: { store.drafts[gigID] = $0 })
+    }
 
     var body: some View {
         VStack {
             if let gig {
                 if wide {
-                    WideDetail(store: store, gig: gig, draft: $draft)
+                    WideDetail(store: store, gig: gig, draft: draft)
                 } else {
-                    NarrowDetail(store: store, gig: gig, draft: $draft)
+                    NarrowDetail(store: store, gig: gig, draft: draft)
                 }
             }
         }
-        .onAppear { draft = gig?.notes ?? "" }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .toolbar {
             ToolbarItem(placement: .principal) {

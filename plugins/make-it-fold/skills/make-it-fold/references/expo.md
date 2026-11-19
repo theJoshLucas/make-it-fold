@@ -20,8 +20,12 @@ changelog). The summary below was true on 2026-11-09; the live page wins.
 ## what to fix
 - **Navigation: let iOS draw it.** Expo Router's `Stack` and `NativeTabs` use the system's bars, which
   move into the Duo's vertical rail by themselves. **Custom JavaScript headers or tab bars do not**:
-  they stay where they were drawn and collide with the rail. Prefer moving to the native
-  navigators; if that is too big, pad them with the safe area on all sides and list it as open.
+  they stay where they were drawn and collide with the rail. Move to the native navigators
+  (`NativeTabs`, `Stack`): that is the fix. Never draw your own side rail in JavaScript. Only if a
+  custom bar does something the system's cannot, keep it, pad it with the safe area on all four
+  sides and list the move as open. When the custom shell goes, carry its look across: the app's
+  background color on the screens (or the layout's content style) and its accent as the tab tint.
+  Swapping the bar must not change the app's colors.
 - **Safe areas on all four sides**: wrap screens with `react-native-safe-area-context`
   (`SafeAreaView` / `useSafeAreaInsets`) and use the left and right insets, not just top and bottom.
 - **Sizes from the window, live**: `useWindowDimensions()` (re-renders on change), never
@@ -31,5 +35,8 @@ changelog). The summary below was true on 2026-11-09; the live page wins.
 - **Orientation lock**: `"orientation": "portrait"` in `app.json` is ignored on the inner display.
   Layouts must work in landscape there. Keep the lock unless the person asks (removing it changes
   ordinary iPhones too) and say so in the report.
-- Split layouts: Expo Router's `<SplitView>` or `<ArrangementView>` (SDK 58) for list-plus-detail on
-  the inner screen. Optional, only where it clearly helps.
+- **Duo-native layout** (`design.md` has the pattern per screen): Expo Router's `<SplitView>` for
+  list-plus-detail and settings, `<ArrangementView>` (SDK 58) for content-plus-controls, switched by
+  `useWindowDimensions().width` (about 600 and up is the inner screen). One screen component and one
+  state, two arrangements. Hold single columns and buttons to about 560 wide. Do not scale fonts
+  with the window.

@@ -96,18 +96,24 @@ graders:
     path: GigLog/NoteField.swift
   pattern: maxLength\s*\{\s*uiView\.resignFirstResponder
   match: not_contains
-- name: no-redesign-list-screen
+- name: N9-inner-screen-shows-list-and-gig
+  type: regex
+  target:
+    source: file
+    path: GigLog/ContentView.swift
+  pattern: NavigationSplitView|horizontalSizeClass|ArrangementView|UISplitViewController
+- name: look-kept-list-screen
   type: regex
   target:
     source: file
     path: GigLog/ContentView.swift
   pattern: '(?=[\s\S]*Gig Log)(?=[\s\S]*Add gig)(?=[\s\S]*Color\.indigo)(?=[\s\S]*systemName: "plus")'
-- name: no-redesign-detail-screen
+- name: look-kept-detail-screen
   type: regex
   target:
     source: file
     path: GigLog/DetailView.swift
-  pattern: (?=[\s\S]*Rename gig)(?=[\s\S]*Save note)(?=[\s\S]*Load-in)(?=[\s\S]*Notes)
+  pattern: (?=[\s\S]*Save note)(?=[\s\S]*Load-in)(?=[\s\S]*Notes)(?=[\s\S]*Tap to rename)
 - name: N3-N4-behaviour
   type: llm
   focus:

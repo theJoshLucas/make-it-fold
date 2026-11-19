@@ -81,3 +81,11 @@ Also read W-08 and W-11 in `layout-web.md`; they apply to native apps too.
 - **Fix:** content declares one minimum on the root and lets the system size it. Clamp any saved width or position to the current screen when restoring. Never save a value that can fall below the readable minimum.
 - **Check:** quit on the inner screen with a wide pane and reopen folded, then the reverse: every pane is readable and every handle reachable. Run with real content through a few background refreshes.
 - **Applies to:** native / iPad
+
+### N-12 A measured width fed back into the thing it measures
+- **Went wrong:** A chart measured its card's width, stored it, and drew itself at that fixed width. Unfolded, the card grew and the chart followed. Folded again, the fixed-width chart held the card at 951 points, so the measurement never came down and the whole page ran off the side of the cover.
+- **Spot it:** a stored width or height (from a geometry reader or a layout callback) used as a fixed frame for content inside the same container that was measured.
+- **Fix:** let the container take its size from its parent (a flexible frame), and draw the measured content in an overlay or background so it cannot push the container wider.
+- **Check:** open the screen unfolded, fold, and compare with the same screen opened folded: identical. Do it in both directions.
+- **Applies to:** native / iPad / Expo
+

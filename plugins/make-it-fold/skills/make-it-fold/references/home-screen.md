@@ -11,3 +11,5 @@ Everything in `web.md` applies, plus:
 - Checks: `duo-shot web` proves the layout in Safari. The installed app itself (added to the Home
   Screen) is a manual check on the simulator or the phone until it is scripted: say so in the
   report.
+- Design: the inner-screen layouts in `web.md#duo-native-layout` apply; with no Safari bars the page has the
+  full 669 x 951, so two panes have more height to use.

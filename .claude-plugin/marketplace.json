@@ -4,13 +4,13 @@
     "name": "Josh Lucas"
   },
   "metadata": {
-    "description": "Tools for making apps work on Apple's foldable iPhone Duo."
+    "description": "Tools for making apps look and work like they were designed for Apple's foldable iPhone Duo."
   },
   "plugins": [
     {
       "name": "make-it-fold",
       "source": "./plugins/make-it-fold",
-      "description": "Make websites and iPhone/iPad apps work on Apple's foldable iPhone Duo.",
+      "description": "Make websites and iPhone/iPad apps Duo-native: every screen laid out for both screens of Apple's foldable iPhone, proven with scored pictures.",
       "category": "development"
     }
   ]

@@ -2,9 +2,12 @@
 """duo-scan: a free, read-only first look at an app before a Duo job.
 
 It works out what kind of app this is (which "surfaces" it ships on) and lists SUSPECTS:
-code patterns that often break on the iPhone Duo. A suspect is not a bug. It is fixed only
-when a real check on the Duo simulator fails. The scan also tells the job which recipe files
-to read, so the job reads only what applies.
+code patterns that often break on the iPhone Duo. A suspect is not a bug. It is fixed when a
+real check on the Duo simulator fails, or when the code plainly does what the trap describes.
+It also lists MUST-DO items (Apple's requirements that no picture can show) and DESIGN HINTS
+(signs that the inner screen will get a stretched phone layout). A clean scan says nothing
+about design: every screen still gets a scorecard verdict from its pictures.
+The scan also tells the job which recipe files to read, so the job reads only what applies.
 
   duo-scan [folder]            human summary (default: current folder)
   duo-scan [folder] --json     the same, as JSON
@@ -56,6 +59,8 @@ WEB_RULES = [
      "canvas or PDF: coordinates and sizes change on a fold", "components.md#canvas"),
     ("overlay", "web", r"createPortal|<Dialog\b|<Popover\b|<Sheet\b|<Drawer\b|<DropdownMenu\b|<Tooltip\b|floating-ui|popper|<dialog\b",
      "dialogs and popovers: check edges, the side bar and the fold after a resize", "components.md#overlays"),
+    ("type-scaled-by-width", "web", r"font(-size)?:[^;{]*\d(vw|vmin|vmax|cqw)\b",
+     "type sized from the window's width: it balloons on the inner screen (use the room to show more)", "web.md#duo-native-layout"),
     ("iframe", "web", r"<iframe\b",
      "iframes: parent CSS cannot fix a third-party frame's insides", "components.md#iframes"),
 ]
@@ -80,9 +85,18 @@ NATIVE_RULES = [
      "navigation stacks: a second one inside a side column pops the screen back", "native.md#navigation"),
     ("resign-in-update", "native", r"resignFirstResponder|endEditing",
      "keyboard dismissal: never inside a SwiftUI update (it can freeze the app)", "native.md#keyboard"),
+    ("sheet", "native", r"\.sheet\(|\.fullScreenCover\(|UISheetPresentationController|\.modalPresentationStyle",
+     "sheets and forms: on the inner screen a form is a panel or a sized card, not a tray as wide as the screen", "native.md#duo-native-layout"),
     ("webview", "wrapper", r"WKWebView|SFSafariViewController|WebView\(",
      "a web view: this app is (partly) a website in a native shell", "wrapper.md"),
 ]
+
+
+# Signs that the code already has a layout for a wide screen.
+WIDE = {
+    "native": re.compile(r"horizontalSizeClass|NavigationSplitView|UISplitViewController|ArrangementView|UIArrangementViewController|ViewThatFits"),
+    "web": re.compile(r"@(media|container)[^{]*(min-width:\s*(5[6-9]\d|[6-9]\d\d|1\d{3})px|width\s*>=?\s*(5[6-9]\d|[6-9]\d\d|1\d{3})px)|\b(md|lg|xl):[a-z]"),
+}
 
 
 def skip_dir(rel):
@@ -185,6 +199,7 @@ def scan(root):
     root = Path(root).resolve()
     surfaces, facts = detect_surfaces(root)
     hits = {}
+    seen, wide = {"web": 0, "native": 0}, {"web": False, "native": False}
     for p, is_test in files(root):
         ext = p.suffix.lower()
         rules = WEB_RULES if ext in WEB_EXT else NATIVE_RULES if ext in NATIVE_EXT else None
@@ -193,6 +208,11 @@ def scan(root):
         text = read(p)
         if text is None:
             continue
+        if not is_test:
+            kind = "web" if ext in WEB_EXT else "native"
+            seen[kind] += 1
+            if WIDE[kind].search(text):
+                wide[kind] = True
         lines = text.splitlines()
         for rid, surf, rx, meaning, recipe in rules:
             r = re.compile(rx, re.M)
@@ -231,8 +251,21 @@ def scan(root):
             recipes.append(route_files[srf])
     traps = sorted({("layout-web.md" if srf in ("web", "home-screen", "wrapper", "capacitor") else "layout-native.md")
                     for srf in surfaces} | {"testing.md", "discipline.md"})
+    must, design = [], []
+    for f in xf:
+        if f.get("launch_screen_key") is False and not f.get("macos_only"):
+            must.append(f"{f.get('project', 'the Xcode project')}: no launch screen key. Add one (UILaunchScreen, or "
+                        "INFOPLIST_KEY_UILaunchScreen_Generation = YES): uploads built with the iOS 27 SDK are rejected "
+                        "without it, it is safe on every iPhone, and no screenshot can show it. native.md, Apple's prerequisites")
+    if seen["native"] and not wide["native"]:
+        design.append("native: no regular-width layout anywhere in the code (no size classes, split view or arrangement "
+                      "view). The inner screen will show the phone layout stretched. design.md, native.md#duo-native-layout")
+    if seen["web"] and not wide["web"] and surfaces & {"web", "home-screen", "wrapper", "capacitor"}:
+        design.append("web: no layout rule for widths of about 600 px and up (no min-width or container query). The inner "
+                      "screen will show the phone layout stretched. design.md, web.md#duo-native-layout")
     return {"folder": str(root), "surfaces": sorted(surfaces), "facts": facts, "xcode": xf,
-            "suspects": hits, "read_recipes": sorted(set(recipes)), "read_traps": traps}
+            "suspects": hits, "must_do": must, "design_hints": design,
+            "read_recipes": sorted(set(recipes) | {"design.md"}), "read_traps": sorted(set(traps) | {"design.md"})}
 
 
 def human(r):
@@ -241,7 +274,10 @@ def human(r):
         out.append(f"  {k}: {v}")
     for f in r["xcode"]:
         out.append("  xcode: " + ", ".join(f"{k}={v}" for k, v in f.items()))
-    out.append("Suspects (fix only if a Duo check fails):")
+    if r.get("must_do"):
+        out.append("Must do (Apple's requirements; no picture can show these):")
+        out += [f"  - {m}" for m in r["must_do"]]
+    out.append("Suspects (fix when a Duo check fails, or when the code plainly does what the trap describes):")
     if not r["suspects"]:
         out.append("  none")
     for rid, h in sorted(r["suspects"].items(), key=lambda kv: -kv[1]["count"]):
@@ -250,8 +286,12 @@ def human(r):
             out.append(f"      {w['file']}:{w['line']}  {w.get('tag', '')}  {w['text'][:90]}")
         if h["count"] > 5:
             out.append(f"      ... {h['count'] - 5} more (use --json)")
+    if r.get("design_hints"):
+        out.append("Design hints (signs of a stretched phone on the inner screen):")
+        out += [f"  - {d}" for d in r["design_hints"]]
     out.append("Read these recipes: " + ", ".join(r["read_recipes"]))
     out.append("Read these trap files: " + ", ".join(r["read_traps"]))
+    out.append("A clean scan says nothing about design: score every screen from its pictures (design.md).")
     return "\n".join(out)
 
 

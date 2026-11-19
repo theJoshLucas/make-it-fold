@@ -1,7 +1,8 @@
 schema_version: '1.1'
 name: web-setlist-no-changes
-description: 'The Setlist practice app with every planted Duo bug already fixed. The right answer is "passes, no
-  changes": a correct run checks it and leaves the app code alone.
+description: 'The Setlist practice app with every planted Duo bug already fixed, given as a FIT-ONLY job (the
+  person says not to change the design). The right answer is "passes, no changes": a correct run checks it,
+  leaves the app code alone, and still says how each screen scores for design.
 
   '
 tags:
@@ -14,9 +15,11 @@ runs: 1
 context:
   scaffold_script: copy-app.sh
 execution:
-  prompt: 'This folder is a small web app (open index.html; there is no build step). Optimize it for the
+  prompt: 'This folder is a small web app (open index.html; there is no build step). Just make sure nothing
 
-    iPhone Duo. When you are done, write your final report to duo-report.md in this folder.
+    breaks on the iPhone Duo: a fit-only job, do not change the design or the layout. When you are done, write
+
+    your final report to duo-report.md in this folder.
 
     '
   max_turns: 120

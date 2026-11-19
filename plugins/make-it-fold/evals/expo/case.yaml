@@ -65,25 +65,25 @@ graders:
     path: app/new.tsx
   pattern: function (CompactForm|WideForm)\([^)]*\)\s*\{\s*const \[\w+, set\w+\] = useState
   match: not_contains
-- name: no-redesign-layout-kept
+- name: look-kept-layout-kept
   type: regex
   target:
     source: file
     path: app/_layout.tsx
-  pattern: (?=[\s\S]*Today)(?=[\s\S]*New)(?=[\s\S]*Settings)(?=[\s\S]*#f6f4ef)
-- name: no-redesign-today-kept
+  pattern: (?=[\s\S]*Today)(?=[\s\S]*New)(?=[\s\S]*Settings)(?=[\s\S]*(#f6f4ef|#1f6f4a))
+- name: look-kept-today-kept
   type: regex
   target:
     source: file
     path: app/index.tsx
   pattern: (?=[\s\S]*Water the plants)(?=[\s\S]*Wipe the counters)(?=[\s\S]*Sweep the porch)(?=[\s\S]*#fff)
-- name: no-redesign-new-kept
+- name: look-kept-new-kept
   type: regex
   target:
     source: file
     path: app/new.tsx
-  pattern: (?=[\s\S]*New chore)(?=[\s\S]*Add chore)(?=[\s\S]*CompactForm)(?=[\s\S]*WideForm)(?=[\s\S]*#1f6f4a)
-- name: no-redesign-versions-kept
+  pattern: (?=[\s\S]*New chore)(?=[\s\S]*Add chore)(?=[\s\S]*Chore name)(?=[\s\S]*#1f6f4a)
+- name: look-kept-versions-kept
   type: regex
   target:
     source: file

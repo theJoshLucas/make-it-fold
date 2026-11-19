@@ -120,6 +120,83 @@
     });
     return out;
   }
+  // Design notes: prompts for the design review, measured from inside the page. They are NOT
+  // failures and never change duo-shot's exit code. A person (or agent) looks at the picture and decides.
+  function design() {
+    var out = [], W = innerWidth, H = innerHeight, wide = W >= 600;
+    function onScreen(r) { return r.bottom > 0 && r.top < H && r.right > 0 && r.left < W; }
+    var stretched = [];
+    document.querySelectorAll("button, input:not([type=hidden]):not([type=range]), select, textarea, [role=button]").forEach(function (el) {
+      if (stretched.length >= 4 || !visible(el)) return;
+      var r = el.getBoundingClientRect();
+      if (r.width > 560 && onScreen(r)) stretched.push(describe(el) + " (" + Math.round(r.width) + "px wide)");
+    });
+    if (stretched.length) out.push({ kind: "stretched-control", detail: "controls wider than a phone would make them: " + stretched.join("; ") });
+    var longLines = [];
+    document.querySelectorAll("p, li, dd, blockquote, td").forEach(function (el) {
+      if (longLines.length >= 2 || !visible(el)) return;
+      var text = (el.innerText || "").trim();
+      if (text.length < 96) return;
+      var r = el.getBoundingClientRect(), fs = parseFloat(getComputedStyle(el).fontSize) || 16;
+      var perLine = Math.round(Math.min(text.length, r.width / (fs * 0.5)));
+      if (perLine > 95 && onScreen(r)) longLines.push(describe(el).slice(0, 50) + " runs about " + perLine + " characters a line");
+    });
+    if (longLines.length) out.push({ kind: "long-lines", detail: "text is hard to read past about 90 characters a line: " + longLines.join("; ") });
+    if (wide) {
+      // Is anything side by side? Look for two sizeable blocks that share a row.
+      var blocks = [];
+      (function walk(el, depth) {
+        if (depth > 7 || blocks.length >= 160) return;
+        for (var c = el.firstElementChild; c; c = c.nextElementSibling) {
+          if (c.id === "__duo_glass" || !visible(c)) continue;
+          var r = c.getBoundingClientRect();
+          if (r.width >= 170 && r.height >= 110 && onScreen(r)) blocks.push({ el: c, r: r });
+          walk(c, depth + 1);
+        }
+      })(document.body, 0);
+      var sideBySide = false;
+      for (var i = 0; i < blocks.length && !sideBySide; i++) {
+        for (var j = 0; j < blocks.length; j++) {
+          var a = blocks[i], b = blocks[j];
+          if (a === b || a.el.contains(b.el) || b.el.contains(a.el)) continue;
+          var overlapY = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+          if (a.r.right <= b.r.left + 1 && overlapY >= 60) { sideBySide = true; break; }
+        }
+      }
+      if (!sideBySide) out.push({ kind: "one-column-on-wide-screen", detail: "at " + W + "px wide everything is still in one column; the inner screen has room for a second pane or more columns" });
+      var left = Infinity, right = -Infinity;
+      document.querySelectorAll("p, h1, h2, h3, li, td, th, img, button, input, select, textarea, label, a, canvas, svg, video").forEach(function (el) {
+        if (!visible(el)) return;
+        var r = el.getBoundingClientRect();
+        if (!onScreen(r) || r.width < 4) return;
+        left = Math.min(left, Math.max(0, r.left)); right = Math.max(right, Math.min(W, r.right));
+      });
+      if (right > left) {
+        var used = Math.round(100 * (right - left) / W);
+        if (used < 60) out.push({ kind: "unused-width", detail: "content uses only " + used + "% of the " + W + "px width; the rest is empty" });
+      }
+    }
+    var small = [];
+    document.querySelectorAll("button, [role=button], input[type=checkbox], input[type=radio], select, a").forEach(function (el) {
+      if (!visible(el)) return;
+      if (el.tagName === "A" && getComputedStyle(el).display === "inline" && el.closest("p, li, td, dd, span")) return;
+      var r = el.getBoundingClientRect();
+      if (onScreen(r) && (r.width < 43 || r.height < 43)) small.push(describe(el) + " (" + Math.round(r.width) + " x " + Math.round(r.height) + ")");
+    });
+    if (small.length) out.push({ kind: "small-touch-target", detail: small.length + " control" + (small.length === 1 ? "" : "s") + " under 44 x 44: " + small.slice(0, 3).join("; ") });
+    return out;
+  }
+  function fonts() {
+    function size(sel) { var e = document.querySelector(sel); return e && visible(e) ? parseFloat(getComputedStyle(e).fontSize) : null; }
+    // The longest visible block of text: Safari's own text enlarging hits wide paragraphs first.
+    var longest = null, len = 0;
+    document.querySelectorAll("p, li, td, dd, blockquote").forEach(function (e) {
+      var n = (e.innerText || "").length;
+      if (n > len && visible(e)) { longest = e; len = n; }
+    });
+    return { body: parseFloat(getComputedStyle(document.body).fontSize), heading: size("h1, h2"), button: size("button, [role=button]"),
+             text: size("p, li, td"), paragraph: longest ? parseFloat(getComputedStyle(longest).fontSize) : null };
+  }
   function read(reason) {
     return {
       reason: reason, marker: window.__duoMarker, url: location.pathname + location.search, time: Date.now(),
@@ -128,7 +205,7 @@
       svh: unit("svh"), dvh: unit("dvh"), lvh: unit("lvh"), inset: insetProbe(),
       scroll: [Math.round(scrollX), Math.round(scrollY)],
       active: describe(document.activeElement), userAgent: navigator.userAgent,
-      issues: issues(), lastClick: window.__duoLastClick || null
+      issues: issues(), design: design(), fonts: fonts(), lastClick: window.__duoLastClick || null
     };
   }
   function post(path, body) {

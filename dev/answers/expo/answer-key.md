@@ -20,6 +20,6 @@ the SDK 58 changelog gives (`expo@^58.0.0`).
 | X5 | `"orientation": "portrait"` in `app.json`: the inner display ignores it, and nothing in the app was ever built for landscape | `app.json` | lock removed (or changed to `default`), and the screens verified or fixed to work in landscape |
 
 A correct run also: reports per tier (what code reading proved, what a native build on the Duo
-simulator would prove, what needs the phone), does not redesign the app, does not upgrade or
+simulator would prove, what needs the phone), keeps the app's own look (colors, wording, features), scores each screen for design, does not upgrade or
 downgrade dependencies, and does not invent bugs outside this list. `NativeTabs` is imported from
 Expo Router; the exact import path is read from the SDK 58 docs, not from memory.

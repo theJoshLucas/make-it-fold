@@ -3,10 +3,11 @@
 **Your app was built for a phone that doesn't bend. The iPhone Duo bends.**
 
 make-it-fold is a [Claude Code](https://claude.com/claude-code) plugin. Point it at a website or an
-iPhone/iPad app, type `/duo`, and it makes the app work on Apple's foldable iPhone: it finds what
-breaks, fixes only that, and proves it by folding a simulated Duo back and forth while it watches.
+iPhone/iPad app, type `/duo`, and it makes the app look and work like it was **designed for** Apple's
+foldable iPhone: it fixes what breaks, lays out every screen again for the Duo's two screens, and
+proves it by folding a simulated Duo back and forth and scoring a picture of every screen.
 
-**Jump to:** [Install](#-install) · [Your first job](#-your-first-job) · [The three commands](#%EF%B8%8F-the-three-commands) · [Safety](#%EF%B8%8F-safety) · [Update or remove](#-update-or-remove)
+**Jump to:** [Install](#-install) · [Your first job](#-your-first-job) · [The commands](#%EF%B8%8F-the-commands) · [Safety](#%EF%B8%8F-safety) · [Update or remove](#-update-or-remove)
 
 ---
 
@@ -30,20 +31,44 @@ Three things trip apps up:
 3. 📷 **Some spots are off limits.** The camera and, when half-open, the fold line are "reserved
    regions": nothing important should live there.
 
+## 🎨 "It fits" is not the goal
+
+An app can survive all of that and still look wrong: a phone layout stretched across the big
+screen, buttons as wide as a ruler, a form covering everything. Nothing is cut off, and nobody
+would believe it was made for a Duo.
+
+So the plugin aims higher than "nothing broke". Each screen should look **Duo-native**:
+
+- 🤏 **On the cover**, the main thing and the main button are there without scrolling, and the bars
+  sit in the side rail where iOS puts them.
+- 📖 **On the inner screen**, the app shows *more*, not the same thing bigger: the list beside the
+  open item, settings beside the page you picked, a form as a panel instead of a full-width tray.
+- 🎭 **It is still your app.** Same colors, fonts, wording and features. An ordinary iPhone sees no
+  difference at all.
+
 ## ✅ What the plugin does
 
 When you type `/duo` inside an app's folder, Claude:
 
 1. 🩺 **Checks your Mac** has what it needs (Xcode, the Duo simulator, the fold tool).
-2. 🔍 **Scans the code** for patterns that usually break on a Duo. These are suspects, not convictions.
-3. 📸 **Takes "before" pictures**, folding the simulator into every position: cover upright, cover
-   sideways (both ways), inner upright, inner sideways, and half-open on request.
-4. 🔧 **Fixes only what actually failed**, with the smallest change that works. No redesigns.
-5. 📸 **Takes "after" pictures**, and checks a normal iPhone isn't worse.
-6. 📝 **Reports in plain words**: what changed, what the simulator proved, what only a real phone can
-   prove, and the exact step to publish. Then it **asks before publishing**.
+2. 🍎 **Downloads Apple's current Duo pages** and reads Apple's design rules fresh, every time, so it
+   is never working from an old copy. It also reads its own notebook of lessons from earlier jobs.
+3. 🔍 **Scans the code** for patterns that usually break on a Duo. These are suspects, not convictions.
+4. 📸 **Takes "before" pictures of every screen**, folding the simulator into every position: cover
+   upright, cover sideways (both ways), inner upright, inner sideways, and half-open on request.
+5. 🧐 **Scores each screen for design**, on the cover and on the inner screen, with eight plain
+   questions (does it use the room? does it show more, not bigger? is the form sized for the
+   screen?). Each screen gets a verdict: **native**, **fits only** or **broken**.
+6. 🔧 **Fixes what broke, then builds the Duo layouts** for every screen that is not native yet.
+7. 📸 **Takes "after" pictures**, puts them side by side with the "before" ones, scores them again,
+   and checks an ordinary iPhone looks exactly as it did.
+8. 📝 **Reports in plain words**: what each screen looks like now, the scorecard, what the simulator
+   proved, what only a real phone can prove, and the exact step to publish. Then it **asks before
+   publishing**.
+9. 📓 **Writes down what it learned**, so the next job on your Mac starts smarter.
 
-"Looks fine, nothing to change" is a perfectly good answer, and it will say so.
+Only want the safety net? Type `/duo fit`: it fixes what breaks, changes no layouts, and still tells
+you how each screen scores.
 
 ## 🚀 Install
 
@@ -130,25 +155,28 @@ only" and lists what was left unproven.
 
 1. Open Claude Code **in your app's folder**. In Terminal: `cd` into the folder, then `claude`.
    In the desktop app: pick that folder when you start a session.
-2. Want to look before anything changes? Type `/duo-shot`. It takes the pictures and lists the
-   problems, and changes nothing.
-3. Ready for the fix? Type `/duo`.
+2. Want to look before anything changes? Type `/duo-shot`. It takes the pictures, lists the
+   problems and scores every screen, and changes nothing.
+3. Ready for the real thing? Type `/duo`.
 
 The first run on an app takes a while: Claude starts your app on your own computer, folds the
 simulator through every position, and reads every screenshot. You'll see the **Duo Kit**
 simulator open and move by itself. That's normal.
 
-## 🕹️ The three commands
+## 🕹️ The commands
 
 | Command | What it does | Changes your code? |
 |---|---|---|
-| `/duo` | The whole job: check, fix, prove, report | Yes, only what's broken |
-| `/duo-shot` | A photo shoot in every fold position, with a list of problems | No |
+| `/duo` | The whole job: make this app Duo-native, and prove it | Yes: fixes and new layouts |
+| `/duo fit` | Only fix what breaks. No layout changes | Yes, only what's broken |
+| `/duo-new` | Start a brand-new app designed for the Duo from the first screen | It writes the new app |
+| `/duo-shot` | A photo shoot of every screen in every fold position, each scored for fit and design | No |
 | `/duo-setup` | Gets your Mac ready, or tells you what's missing | No |
 
 Results land in your app's `duo/shots/` folder, one dated folder per run: full-size screenshots
-(the exact pixel sizes the App Store asks for), small copies for a quick look, and a
-`contact.html` page showing every position at a glance. Add `duo/shots/` to your `.gitignore` if
+(the exact pixel sizes the App Store asks for), small copies for a quick look, a `contact.html`
+page showing every position at a glance, a `review.md` scorecard, and after a fix a `compare.html`
+page with before and after side by side. Add `duo/shots/` to your `.gitignore` if
 you don't want the pictures saved with your code.
 
 ## 🧭 What kinds of apps
@@ -162,19 +190,35 @@ you don't want the pictures saved with your code.
 | iPad and universal apps | ✅ fully tested |
 | Expo / React Native | ✅ fully tested, code only (needs Expo SDK 58 or newer) |
 | Flutter, Capacitor, games | 🧭 guided, less proven |
+| A brand-new app (`/duo-new`) | 🧭 guided, less proven |
 | Mac desktop apps | 🏗️ a port, not a tune-up: it gives you an estimate first |
 
-**"Fully tested"** means the plugin ships a practice app of that kind with Duo bugs planted in it
-on purpose. A fresh Claude session, told only "optimize this for Duo", has to find and fix every
-one, and a second practice run on an already-fixed app has to come back "passes, no changes". The
-whole exam reruns with one command whenever the plugin changes. In v0.1.0 all 8 exams pass: the
-"already fixed" web exam 4 runs out of 4, the buggy web exam 2 out of 2, and the other six on one
-run each. One run is a small sample: it shows the plugin can do the job, not how often. Each run
-cost $0.32 to $0.88 of Claude usage.
+**"Fully tested"** means the plugin ships a practice app of that kind, and a fresh Claude session,
+told only "optimize this for Duo", has to pass an exam on it. There are 9 exams:
 
-Two honest limits on that: the exams grade the code fixes and the honesty of the report, and the
-simulator folding was checked separately by hand. And the Expo practice app was graded on its
-code only. It has not been built and run on the simulator yet.
+- 🐛 **Six apps with Duo bugs planted on purpose.** Every bug has to be found and fixed, and the app
+  has to keep its own colors and wording.
+- 🎨 **One app with nothing broken** that is a phone layout stretched across the big screen. The
+  right answer is a Duo layout: the list beside the open item, a form that is not a full-width
+  tray, and a phone layout left exactly as it was.
+- 🧘 **One already-fixed app, given as a "fit only" job.** The right answer is "passes, no changes".
+- 🚧 **One app on an Expo version too old for the Duo.** The right answer is to stop and say so.
+
+The whole exam reruns with one command whenever the plugin changes. In v0.2.0 all 9 pass on their
+latest runs (three of them twice in a row). It took three rounds to get there: the first full run
+passed 5 of 9, and each miss changed the plugin's instructions. One or two runs is a small sample:
+it shows the plugin can do the job, not how often. Each run cost $0.44 to $1.60 of Claude usage.
+
+Three honest limits on that:
+
+- The exam sessions run in a locked-down sandbox that cannot reach the simulator, so they grade
+  the code and the honesty of the report. A layout nobody has seen is reported as "built, not
+  seen", never "native".
+- What "native" looks like was checked separately, by hand, on the Duo simulator: the web and
+  native practice answers were photographed in all 7 positions with a task in progress, before
+  and after, and judged from the pictures.
+- The Expo practice app was graded on its code only. It has not been built and run on the
+  simulator yet.
 
 ## 🧪 What it can't prove
 
@@ -183,8 +227,8 @@ feels, how the camera behaves, how fast it runs, or what the crease looks like. 
 apps side by side) also only works on a real Duo. The report always lists what still needs a real
 phone.
 
-Everything here was measured on the iPhone Duo **simulator** (Xcode 27.2, iOS 27.2). v0.1.0 has
-not been run against a real Duo yet.
+Everything here was measured on the iPhone Duo **simulator** (Xcode 27.2, iOS 27.2). The plugin's
+own checks have not been run against a real Duo yet.
 
 📏 **Got a real Duo?** Open [thejoshlucas.github.io/make-it-fold](https://thejoshlucas.github.io/make-it-fold/)
 in Safari, then fold, unfold and turn the phone. The page checks each position against the simulator's
@@ -198,10 +242,14 @@ numbers. If anything is different, tap **Share results** and
   tool backs that up: it refuses any web address that isn't on your own computer. (It can be told to
   look at one public page, and then it leaves your logins behind.)
 - **Asks before publishing.** Every time.
-- **Your code is only changed by `/duo`.** The other two commands don't touch it. Commit your work
-  first, so every change `/duo` makes shows up as a clean diff you can undo.
-- **Apple's docs, live.** The plugin reads Apple's current documentation when it needs it, instead
-  of trusting a copy that might be out of date.
+- **Your code is only changed by `/duo`** (and `/duo-new`, which writes a new app). `/duo-shot` and
+  `/duo-setup` don't touch it. Commit your work first, so every change `/duo` makes shows up as a
+  clean diff you can undo.
+- **It redesigns the layout, not your brand.** Colors, fonts, wording and features stay. The new
+  layouts only switch on at Duo sizes, and the job checks an ordinary iPhone still looks the same.
+- **Apple's docs, fresh every run.** At the start of every job the plugin downloads Apple's current
+  Duo pages (only from developer.apple.com) and reads Apple's design rules again. If Apple's page
+  and the plugin's own notes disagree, Apple wins.
 - **One outside tool, locked to a version we read.** Folding and tapping the simulator uses
   [duoctl](https://github.com/skarol/duoctl) (MIT). `/duo-setup` installs one exact copy of it,
   the one whose code was read in full, never "whatever is newest".
@@ -210,12 +258,19 @@ numbers. If anything is different, tap **Share results** and
 
 ## 🔄 Update or remove
 
-**Update** (in Terminal, then quit and reopen Claude Code):
+**Get updates by themselves** (do this once): in Claude Code type `/plugin`, go to
+**Marketplaces**, pick **make-it-fold**, and choose **Enable auto-update**. Claude Code turns this
+off by default for plugins that don't come from Anthropic, so nothing updates until you switch it on.
+After that, new versions arrive on their own the next time you open Claude Code.
+
+**Update by hand** (in Terminal, then quit and reopen Claude Code):
 
 ```
 claude plugin marketplace update make-it-fold
 claude plugin update make-it-fold@make-it-fold
 ```
+
+Not sure if you're behind? `/duo-setup` tells you when a newer version is out.
 
 **Remove** (in Terminal):
 
@@ -229,24 +284,34 @@ Mac:
 
 - The **Duo Kit** simulator: in Xcode, Window > Devices and Simulators > Simulators, right-click
   Duo Kit > Delete.
-- Two small folders in your home folder: `.cache/make-it-fold` and `.cache/duoctl` (the fold tool
-  and its notes).
+- Three small folders in your home folder: `.cache/make-it-fold` and `.cache/duoctl` (the fold tool
+  and saved copies of Apple's pages), and `.config/make-it-fold` (the notebook of lessons).
 - A `duo/` folder inside each app you ran it on (your screenshots and test steps).
 
 ## 🤖 For AI agents reading this
 
 Start with the `make-it-fold` skill (`plugins/make-it-fold/skills/make-it-fold/SKILL.md`). Follow
-its job in order, read only the recipe and trap files `duo-scan` names, and never load every file.
+its job in order, read only the recipe and trap files `duo-scan` names (plus `references/design.md`
+and `traps/design.md`, which every job reads), and never load every file. "Nothing is cut off" is
+not done: every screen needs a design verdict from a picture you looked at.
 Scripts are in `plugins/make-it-fold/scripts/`; each one explains itself with `--help`.
 
 Changing the plugin itself? Read `AGENTS.md` first, and run `dev/check` before you push.
 
 ## 🪤 Traps, and how it gets smarter
 
-The plugin carries a notebook of 59 hard-won lessons ("traps"): what went wrong, how to spot it,
-the fix, and a check. When a job hits something the notebook didn't warn about, Claude drafts a new
-entry. If you hit one, please [open an issue](https://github.com/theJoshLucas/make-it-fold/issues)
-with the draft.
+The plugin learns in three ways:
+
+- 🍎 **From Apple, every run.** It downloads Apple's current Duo pages at the start of each job and
+  notices when Apple has changed one or added a new one.
+- 📓 **From your own jobs.** When a job hits something new, Claude writes the lesson into a notebook
+  on your Mac (`~/.config/make-it-fold/notebook.md`) without being asked, and reads that notebook
+  at the start of the next job. It survives plugin updates.
+- 🪤 **From everyone.** The plugin ships with 73 hard-won lessons ("traps"): what went wrong, how to
+  spot it, the fix, and a check. Twelve of them are about design: the ways an app can fit and
+  still look wrong. After saving a lesson, Claude offers to send it here as
+  [an issue](https://github.com/theJoshLucas/make-it-fold/issues) (it asks first), so the next
+  version can teach it to everyone.
 
 ## 🙏 Credits
 

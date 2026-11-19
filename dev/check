@@ -5,13 +5,26 @@ cd "$(dirname "$0")/.."
 claude plugin validate . >/dev/null
 claude plugin validate plugins/make-it-fold >/dev/null
 S=plugins/make-it-fold/scripts
-for f in duo-sim duo-scan duo-shot duo-listen duo-setup; do python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$S/$f"; done
+for f in duo-sim duo-scan duo-shot duo-listen duo-setup duo-docs duo-notes; do python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$S/$f"; done
 node -e "new Function(require('fs').readFileSync('$S/duo-reporter.js','utf8'))"
 # Every fixed reference copy must pass all of its exam's regex graders.
-for c in web native ipad wrapper home-screen expo; do
+for c in web web-phone native ipad wrapper home-screen expo; do
   dev/check-graders "plugins/make-it-fold/evals/$c/case.yaml" "dev/answers/$c/fixed" | grep -q -- "-> [0-9]* pass, 0 fail" || { echo "graders fail on dev/answers/$c/fixed"; exit 1; }
 done
 dev/check-graders plugins/make-it-fold/evals/expo-old/case.yaml plugins/make-it-fold/practice/expo-old | grep -q -- ", 0 fail" || { echo "expo-old graders fail"; exit 1; }
+# The design exam must be able to fail: the stretched-phone practice app has no wide layout yet.
+dev/check-graders plugins/make-it-fold/evals/web-phone/case.yaml plugins/make-it-fold/practice/web-phone | grep -q "FAIL  P1-has-a-wide-layout-rule" || { echo "web-phone: the practice app already passes the design grader"; exit 1; }
+# Every Apple page the job fetches is an Apple developer page, and the recipes' baseline covers each one.
+python3 - <<'PY'
+import json, sys
+rows = [l.split("\t") for l in open("plugins/make-it-fold/tools/apple-docs.tsv") if l.strip() and not l.startswith("#")]
+base = json.load(open("plugins/make-it-fold/tools/apple-docs.baseline.json"))["pages"]
+bad = [r[0] for r in rows if len(r) != 4 or not r[2].startswith("https://developer.apple.com/") or r[0] not in base]
+sys.exit(f"apple-docs.tsv rows not Apple pages or missing from the baseline: {bad}" if bad else 0)
+PY
+# Trap IDs are unique.
+dup=$(grep -h -o "^### [A-Z]-[0-9]*" plugins/make-it-fold/skills/make-it-fold/traps/*.md | sort | uniq -d)
+[ -z "$dup" ] || { echo "duplicate trap ids: $dup"; exit 1; }
 # Nothing private in any file git would publish (tracked, or new and not ignored). Two generic
 # patterns always run (a home-folder path, a personal email address); the brackets keep this file
 # from matching itself. The maintainer's own names live in dev/private-words.txt, one per line,

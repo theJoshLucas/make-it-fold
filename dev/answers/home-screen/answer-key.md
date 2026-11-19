@@ -17,5 +17,4 @@ Not planted (do not "fix"): the viewport tag already has `viewport-fit=cover`; t
 valid; the third tab button is decoration.
 
 A correct run also: reports per tier (desktop browser / Duo simulator / needs the phone), says
-that the installed Home Screen app itself is a manual check (not scripted), does not redesign
-the app, and does not invent bugs outside this list.
+that the installed Home Screen app itself is a manual check (not scripted), keeps the app's own look (colors, wording, features), scores each screen for design, and does not invent bugs outside this list.

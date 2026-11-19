@@ -16,4 +16,4 @@ read it. Graders in `case.yaml` check each one.
 | W9 | Delete buttons only appear on hover: invisible on touch | `style.css` `.del` | visible on touch (`@media (hover: none)` or always shown) |
 
 A correct run also: reports per tier (desktop browser / Duo simulator / needs the phone),
-does not redesign the app, and does not invent bugs outside this list.
+keeps the app's own look (colors, wording, features), scores each screen for design, and does not invent bugs outside this list.

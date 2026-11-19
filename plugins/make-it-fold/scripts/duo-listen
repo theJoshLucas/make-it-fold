@@ -236,7 +236,17 @@ def make_handler(hub, folder=None, proxy=None):
     return Handler
 
 
-class V6Server(http.server.ThreadingHTTPServer):
+class QuietServer(http.server.ThreadingHTTPServer):
+    """Safari drops connections whenever it likes (a fold, a reload). That is not an error worth a
+    traceback in the middle of a report."""
+    def handle_error(self, request, client_address):
+        import sys
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+            return
+        super().handle_error(request, client_address)
+
+
+class V6Server(QuietServer):
     address_family = socket.AF_INET6
 
 
@@ -263,7 +273,7 @@ def start(port=8787, folder=None, proxy=None, log=DEFAULT_LOG, allow_remote=Fals
     for p in range(port, port + 40):
         made = []
         try:
-            for cls, host in ((http.server.ThreadingHTTPServer, "127.0.0.1"), (V6Server, "::1")):
+            for cls, host in ((QuietServer, "127.0.0.1"), (V6Server, "::1")):
                 cls.allow_reuse_address = False
                 srv = cls((host, p), handler)
                 srv.daemon_threads = True

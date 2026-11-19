@@ -13,10 +13,12 @@ Run every route that applies and test every surface.
 | Expo / React Native | fully tested | `expo.md` (version gate first) |
 | Flutter, Capacitor/Ionic, games (Unity, SpriteKit, Metal) | guided | `guided.md` |
 | Mac desktop app (AppKit, SwiftUI for Mac, Electron) | port, not a tune-up | `mac-port.md` |
+| A new app, nothing to convert | guided | `new-app.md`, then the route for the kind of app chosen |
 | Anything else | unproven | `guided.md`, and say "unproven route" in the report |
 
 "Fully tested" means this plugin ships a practice app of that type with planted Duo bugs and an
 exam that a fresh session must pass. "Guided" means the checklist starts by reading that
 framework's own live Duo docs, and the report says the route is less proven.
 
-Always also read `traps/testing.md` and `traps/discipline.md`.
+Always also read `traps/testing.md` and `traps/discipline.md`. Every job except a fit-only one also
+reads `design.md` and `traps/design.md`: the route says how to build, those two say what good looks like.

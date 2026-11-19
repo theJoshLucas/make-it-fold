@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""duo-notes: this computer's own notebook of lessons from Duo jobs. It is how the plugin learns.
+
+  duo-notes show [--applies web|native|ipad|expo|all] [--last]   print the lessons (read at the start of every job)
+  duo-notes add --title T --went-wrong W --spot S --fix F --check C --applies A
+                                                                  save one lesson (at the end of a job)
+  duo-notes path                                                  where the notebook file is
+
+The notebook is one Markdown file, ~/.config/make-it-fold/notebook.md. It stays on this computer,
+survives plugin updates, and is shared by every app's Duo jobs here. Lessons are written
+generically: no app names, people, companies, addresses, keys or private paths, because the person
+may choose to send one to the plugin's maintainers.
+"""
+import argparse
+import os
+import re
+import sys
+from datetime import date
+from pathlib import Path
+
+HOME_CFG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "make-it-fold"
+BOOK = HOME_CFG / "notebook.md"
+HEADER = ("# make-it-fold notebook\n\nLessons from Duo jobs on this computer. Read at the start of every job "
+          "(`duo-notes show`), added to at the end (`duo-notes add`).\n")
+SECRET = re.compile(r"(sk-[A-Za-z0-9_\-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY|"
+                    r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}|/[U]sers/[^\s/]+|/[h]ome/[^\s/]+)")
+
+
+def entries():
+    if not BOOK.exists():
+        return []
+    parts = re.split(r"(?m)^(?=### L-\d+ )", BOOK.read_text())
+    return [p.rstrip() + "\n" for p in parts if p.startswith("### L-")]
+
+
+def show(a):
+    es = entries()
+    if a.applies:
+        want = a.applies.lower()
+        keep = []
+        for e in es:
+            m = re.search(r"\*\*Applies to:\*\*\s*(.*)", e)
+            tags = (m.group(1) if m else "all").lower()
+            if want in tags or "all" in tags:
+                keep.append(e)
+        es = keep
+    if a.last:
+        es = es[-1:]
+    if not es:
+        print("The notebook has no lessons yet." if not entries() else "No lessons match.")
+        return
+    print(f"{len(es)} lesson{'s' if len(es) != 1 else ''} from earlier Duo jobs on this computer ({BOOK}):\n")
+    print("\n".join(es))
+
+
+def add(a):
+    fields = {"title": a.title, "went wrong": a.went_wrong, "spot it": a.spot, "fix": a.fix, "check": a.check, "applies to": a.applies}
+    for k, v in fields.items():
+        if not v or not v.strip():
+            raise SystemExit(f"duo-notes: --{k.replace(' ', '-').replace('-it', '').replace('-to', '')} is empty; every field is needed")
+        hit = SECRET.search(v)
+        if hit:
+            raise SystemExit(f"duo-notes: the {k} text holds something private-looking ({hit.group(0)[:12]}...). "
+                             "Write the lesson generically: no keys, email addresses or home-folder paths.")
+    one = lambda s: " ".join(s.split())
+    es = entries()
+    if any(one(a.title).lower() in e.splitlines()[0].lower() for e in es):
+        print("duo-notes: a lesson with this title is already in the notebook; nothing added.")
+        return
+    n = max([int(re.match(r"### L-(\d+)", e).group(1)) for e in es], default=0) + 1
+    entry = (f"### L-{n:03d} {one(a.title)}\n- **Learned:** {date.today().isoformat()}\n- **Went wrong:** {one(a.went_wrong)}\n"
+             f"- **Spot it:** {one(a.spot)}\n- **Fix:** {one(a.fix)}\n- **Check:** {one(a.check)}\n- **Applies to:** {one(a.applies)}\n")
+    try:
+        HOME_CFG.mkdir(parents=True, exist_ok=True)
+        if not BOOK.exists():
+            BOOK.write_text(HEADER)
+        with open(BOOK, "a") as fh:
+            fh.write("\n" + entry)
+    except OSError as e:
+        # A sandboxed session may not write outside the app's folder. Do not lose the lesson.
+        print(f"duo-notes: could not write the notebook here ({e.strerror}). Put this lesson in the report "
+              f"and in the app's duo/notes.md instead:\n\n{entry}")
+        return
+    print(f"Saved lesson L-{n:03d} to {BOOK}")
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = p.add_subparsers(dest="cmd", required=True)
+    s = sub.add_parser("show"); s.add_argument("--applies"); s.add_argument("--last", action="store_true")
+    s = sub.add_parser("add")
+    for f in ("title", "went-wrong", "spot", "fix", "check", "applies"):
+        s.add_argument("--" + f, required=True)
+    sub.add_parser("path")
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        print(__doc__.strip()); return
+    a = p.parse_args()
+    if a.cmd == "show":
+        show(a)
+    elif a.cmd == "add":
+        add(a)
+    else:
+        print(BOOK)
+
+
+if __name__ == "__main__":
+    main()

@@ -10,6 +10,7 @@ Write it once, on the first Duo job, and reuse it. Short is fine.
   "paths": ["/", "/new"],
   "steps": {
     "/new": [
+      {"name": "form half filled"},
       {"type": ["#title", "Half-typed note"]},
       {"pose": "cover-portrait"},
       {"expect_value": ["#title", "Half-typed note"]},
@@ -19,9 +20,32 @@ Write it once, on the first Duo job, and reuse it. Short is fine.
   }
 }
 ```
-Steps: `type` [selector, text], `tap` selector, `pose` name, `wait` seconds, `expect_visible`
-selector (on screen and not covered), `expect_value` [selector, text], `expect_text` text.
+Steps: `type` [selector, text], `tap` selector, `pose` name (folds, and takes a picture), `wait`
+seconds, `expect_visible` selector (on screen and not covered), `expect_value` [selector, text],
+`expect_text` text, and `name` text: it names the state the following pictures show ("item open",
+"new-entry form"), and each named state gets its own block in the design scorecard. Reach every
+state a person can see (an open item, each form, a menu) and name it, on the cover and unfolded.
 Keep app-specific notes for the next job in `duo/notes.md`.
+
+## native screens (so every screen is photographed, not just the first)
+`duo-shot native` relaunches the app once per screen and shoots it in every pose:
+```json
+{
+  "backend": "local-sandbox",
+  "screens": [
+    {"name": "home"},
+    {"name": "settings", "args": ["-screen", "settings"]},
+    {"name": "new-entry", "env": {"APP_OPEN": "new-entry"}, "wait": 2},
+    {"name": "item", "url": "myapp://item/1"},
+    {"name": "menu", "taps": [[420, 60]]}
+  ]
+}
+```
+Each screen may use `args` (launch arguments), `env` (environment values the app reads at launch),
+`url` (a link the app opens), `taps` (points to tap, in the first pose, after launch) and `wait`
+(seconds to settle, default 3). Most apps need a small debug-only switch to open a screen directly
+with made-up data: add one (never in release builds) and write it in `duo/notes.md`. Include every
+sheet, form and menu: they are where a stretched layout shows most.
 
 ## backend (required): never test against live data
 - `local-sandbox`: a throwaway local database with made-up data. Writes allowed.

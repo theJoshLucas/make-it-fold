@@ -10,23 +10,35 @@ WEB (a site running on your own computer, e.g. a dev server on localhost:5173):
   Safari zoom) and checks the page was not reloaded by the fold.
 
 NATIVE (an iPhone/iPad app):
-  duo-shot native --bundle <bundle id> [--app <path to .app>] [--poses ...] [--label ...] [--out ...]
-  Installs (if --app), launches, and screenshots every pose. Native layout is judged from the
-  screenshots plus the app's own UI tests; duo-shot only checks the app is still running.
+  duo-shot native --bundle <bundle id> [--app <path to .app>] [--scenario duo/scenario.json]
+                  [--env KEY=VALUE ...] [--poses ...] [--label ...] [--out ...]
+  Installs (if --app), launches, and screenshots every pose. With a scenario that lists
+  "screens", it relaunches the app once per screen (launch arguments, environment values, a link
+  to open, or taps) and shoots each one in every pose; without one it only sees the screen the
+  app opens on. Native layout is judged from the screenshots plus the app's own UI tests;
+  duo-shot only checks the app is still running.
+
+COMPARE (two finished runs, side by side):
+  duo-shot compare <before folder> <after folder>
+  Writes compare.html into the "after" folder: every screen and pose, before beside after.
 
 Poses: default = cover-portrait, cover-landscape, cover-landscape-flipped, inner-portrait,
 inner-landscape. all = default + book, laptop.
 
 Scenario file (optional, JSON): {"paths": ["/", "/new"], "steps": {"/new": [
-  {"type": ["#title", "Half-typed note"]}, {"pose": "cover-portrait"},
+  {"name": "form half filled"}, {"type": ["#title", "Half-typed note"]}, {"pose": "cover-portrait"},
   {"expect_value": ["#title", "Half-typed note"]}, {"tap": "button[type=submit]"},
   {"expect_visible": "#save"}, {"expect_text": "Saved"}]}}
 Never put real passwords in a scenario. Never point a scenario at live data (see the
 sandbox recipe): duo-shot refuses a URL that is not on this computer unless --allow-remote
 (for a read-only page; cookies and logins are never passed along to it).
 
-Output: <out>/<timestamp>-<label>/ with summary.json, report.md, contact.html, full-size
-screenshots (App Store sizes) and small copies in thumbs/ for a quick look.
+Output: <out>/<timestamp>-<label>/ with summary.json, report.md, contact.html, review.md (the
+design scorecard to fill in, one block per screen), full-size screenshots (App Store sizes) and
+small copies in thumbs/ for a quick look.
+Web runs also print DESIGN NOTES per pose (one column on a wide screen, stretched controls, long
+lines, unused width, small touch targets, text that grows on the inner screen). Notes are prompts
+for the design review, not failures: they never change the exit code.
 Exit code: 0 = no issues found, 1 = issues found, 2 = could not run.
 """
 import argparse
@@ -117,6 +129,7 @@ def contact_sheet(outdir, rows, title):
         badge = "ok" if not issues else f"{len(issues)} issue{'s' if len(issues) != 1 else ''}"
         cls = "ok" if not issues else "bad"
         detail = "".join(f"<li>{esc(i['kind'])}: {esc(i['detail'])}</li>" for i in issues)
+        detail += "".join(f"<li class=\"note\">design note, {esc(i['kind'])}: {esc(i['detail'])}</li>" for i in (r.get("design") or []))
         size = esc(r.get("size", ""))
         cards.append(f'<figure><a href="{link(r["shot"])}"><img src="{link(r["thumb"])}" loading="lazy"></a>'
                      f'<figcaption><b>{esc(r["label"])}</b> <span class="{cls}">{badge}</span><br>{size}'
@@ -128,9 +141,88 @@ def contact_sheet(outdir, rows, title):
 body{{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.4 -apple-system,system-ui,sans-serif}}
 main{{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}}
 figure{{margin:0;background:var(--card);border-radius:10px;padding:8px}} img{{width:100%;height:auto;border-radius:6px}}
-.ok{{color:var(--ok)}} .bad{{color:var(--bad)}} ul{{margin:4px 0 0;padding-left:18px}}
+.ok{{color:var(--ok)}} .bad{{color:var(--bad)}} .note{{opacity:.75}} ul{{margin:4px 0 0;padding-left:18px}}
 </style></head><body><h1>{title}</h1><main>{''.join(cards)}</main></body></html>"""
     (outdir / "contact.html").write_text(page)
+
+
+QUESTIONS = ["1 uses the room", "2 shows more, not bigger", "3 built for short", "4 bars are the system's",
+             "5 clear of the fold", "6 forms sized for the screen", "7 same app", "8 looks deliberate"]
+
+
+def screen_of(row):
+    return row.get("screen") or row.get("path") or "app"
+
+
+def review_sheet(outdir, rows, title):
+    """The design scorecard to fill in: one block per screen, a line for the cover and one for the
+    inner screen. duo-shot cannot judge design; whoever runs it must look at the pictures."""
+    screens = {}
+    for r in rows:
+        screens.setdefault(screen_of(r), []).append(r)
+    head = "| Screen size | " + " | ".join(QUESTIONS) + " | Verdict |"
+    rule = "|" + "---|" * (len(QUESTIONS) + 2)
+    lines = [f"# Design review: {title}", "",
+             "Fill in every `?` after looking at each picture at FULL size (not the thumbnails).",
+             "The eight questions and the patterns are in the make-it-fold skill, `references/design.md`.",
+             "Answer yes / no / n-a. Verdict: **native**, **fits only** or **broken**.", ""]
+    for name, rs in screens.items():
+        lines += [f"## {name}", ""]
+        for r in rs:
+            if r.get("shot"):
+                lines.append(f"- {r['pose']}: `{r['shot']}`" + (f" ({len(r['issues'])} fit issue{'s' if len(r['issues']) != 1 else ''})" if r.get("issues") else ""))
+        notes = sorted({f"{d['kind']}: {d['detail']}" for r in rs for d in (r.get("design") or [])})
+        if notes:
+            lines += ["", "Design notes measured from the page (prompts, not verdicts):"] + [f"- {n}" for n in notes]
+        blank = " | ".join("?" for _ in QUESTIONS)
+        lines += ["", head, rule, f"| Cover | {blank} | ? |", f"| Inner | {blank} | ? |", "",
+                  "If not native, what this screen should become (cover / inner sideways / inner upright): ?", ""]
+    (outdir / "review.md").write_text("\n".join(lines) + "\n")
+
+
+def compare(before, after):
+    before, after = Path(before), Path(after)
+    try:
+        b = json.loads((before / "summary.json").read_text())
+        a = json.loads((after / "summary.json").read_text())
+    except (OSError, ValueError) as e:
+        raise ShotError(f"compare needs two finished duo-shot folders (each with summary.json): {e}")
+    esc = lambda v: html.escape(str(v))
+    brow = {r["label"]: r for r in b["rows"]}
+    arow = {r["label"]: r for r in a["rows"]}
+    labels = list(dict.fromkeys(list(brow) + list(arow)))
+
+    def cell(folder, r, word):
+        if not r or not r.get("thumb"):
+            return f'<figure class="none"><figcaption>{word}: not in this run</figcaption></figure>'
+        rel = lambda f: html.escape(urllib.parse.quote(os.path.relpath(folder / f, after)))
+        n = len(r.get("issues") or [])
+        badge = "ok" if not n else f"{n} fit issue{'s' if n != 1 else ''}"
+        return (f'<figure><a href="{rel(r["shot"])}"><img src="{rel(r["thumb"])}" loading="lazy"></a>'
+                f'<figcaption>{word} <span class="{"ok" if not n else "bad"}">{badge}</span></figcaption></figure>')
+
+    pairs = "".join(f'<section><h2>{esc(l)}</h2><div class="pair">{cell(before, brow.get(l), "Before")}'
+                    f'{cell(after, arow.get(l), "After")}</div></section>' for l in labels)
+    page = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Before and after on the iPhone Duo</title><style>
+:root{{color-scheme:light dark;--bg:#fff;--fg:#111;--card:#f4f4f5;--ok:#137333;--bad:#b3261e}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#111;--fg:#eee;--card:#1d1d20;--ok:#7ad38f;--bad:#ff8a80}}}}
+body{{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.4 -apple-system,system-ui,sans-serif}}
+h2{{font-size:15px;margin:20px 0 8px}} .pair{{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1100px}}
+figure{{margin:0;background:var(--card);border-radius:10px;padding:8px}} img{{width:100%;height:auto;border-radius:6px}}
+.none{{display:grid;place-items:center;min-height:120px;opacity:.6}} .ok{{color:var(--ok)}} .bad{{color:var(--bad)}}
+</style></head><body><h1>Before and after on the iPhone Duo</h1>
+<p>Before: {esc(b.get("title", before.name))}<br>After: {esc(a.get("title", after.name))}</p>{pairs}</body></html>"""
+    out = after / "compare.html"
+    out.write_text(page)
+    only_b = [l for l in labels if l not in arow]
+    only_a = [l for l in labels if l not in brow]
+    print(f"Side by side: {out}  ({len(labels) - len(only_a) - len(only_b)} matched pairs)")
+    if only_b:
+        print(f"Only in the before run: {', '.join(only_b)}")
+    if only_a:
+        print(f"Only in the after run: {', '.join(only_a)}")
+    return 0
 
 
 class WebRun:
@@ -245,19 +337,28 @@ class WebRun:
         row = {"label": f"{path} · {pose}", "path": path, "pose": pose, "shot": shot, "thumb": th,
                "size": f"{rep['innerWidth']} x {rep['innerHeight']} CSS px, safe areas T{ins.get('top')} R{ins.get('right')} B{ins.get('bottom')} L{ins.get('left')}",
                "measure": {k: rep.get(k) for k in ("innerWidth", "innerHeight", "svh", "dvh", "lvh", "inset", "visualViewport")},
-               "issues": issues}
+               "issues": issues, "design": list(rep.get("design") or []), "fonts": rep.get("fonts")}
         self.rows.append(row)
         return row
 
     def run_steps(self, path, marker):
         steps = (self.scenario.get("steps") or {}).get(path, [])
+        state = None
         for i, s in enumerate(steps, 1):
             (op, arg), = s.items()
-            if op == "pose":
+            if op == "name":
+                state = str(arg)  # names the state the next pictures show; it gets its own scorecard block
+            elif op == "pose":
                 sim("pose", arg)
                 time.sleep(0.6)
                 rep = self.fresh()
-                self.record(path, f"step{i}-{arg}", rep, marker)
+                row = self.record(path, f"{state}-{arg}" if state else f"step{i}-{arg}", rep, marker)
+                row["pose"] = arg
+                if state:
+                    row["screen"] = f"{path} {state}"
+                    row["label"] = f"{path} · {state} · {arg}"
+                else:
+                    row["label"] = f"{path} · step {i} · {arg}"
             elif op == "tap":
                 self.tap(arg)
             elif op == "type":
@@ -308,20 +409,50 @@ class WebRun:
             self.run_steps(path, marker)
         return self.finish(f"Duo check: {self.base} ({self.a.label})")
 
+    def text_growth(self):
+        """Text that is bigger on the inner screen than on the cover means the app is scaling up
+        to fill the room, instead of showing more. Compare each page's font sizes across poses."""
+        by = {}
+        for r in self.rows:
+            if r.get("fonts") and r.get("pose") in DEFAULT_POSES:
+                by.setdefault(screen_of(r), {})[r["pose"]] = r
+        for rows in by.values():
+            cover = rows.get("cover-portrait")
+            if not cover:
+                continue
+            for pose in ("inner-portrait", "inner-landscape"):
+                r = rows.get(pose)
+                if not r:
+                    continue
+                grew = [f"{k} {cover['fonts'][k]:g}px to {r['fonts'][k]:g}px" for k in ("body", "heading", "button", "text", "paragraph")
+                        if cover["fonts"].get(k) and r["fonts"].get(k) and r["fonts"][k] > cover["fonts"][k] * 1.12]
+                if grew:
+                    r["design"].append({"kind": "text-grows-on-inner-screen",
+                                        "detail": "type is bigger here than on the cover (" + ", ".join(grew) + "): use the room to show more, not to enlarge"})
+
     def finish(self, title):
+        self.text_growth()
         total = sum(len(r["issues"]) for r in self.rows) + len(self.findings)
+        notes = sum(len(r.get("design") or []) for r in self.rows)
         summary = {"title": title, "when": datetime.now().isoformat(timespec="seconds"),
-                   "issue_count": total, "rows": self.rows, "scenario_failures": self.findings,
+                   "issue_count": total, "design_note_count": notes, "rows": self.rows, "scenario_failures": self.findings,
                    "tier": f"Duo simulator ({sim('runtime', check=False) or 'iOS version unknown'}{self.kind})"}
         (self.out / "summary.json").write_text(json.dumps(summary, indent=2))
         contact_sheet(self.out, self.rows, title)
+        review_sheet(self.out, self.rows, title)
         lines = [f"# {title}", "", f"Tier: Duo simulator. Issues found: {total}.", ""]
         for r in self.rows:
             lines.append(f"- **{r['label']}** ({r['size']}): " + ("ok" if not r["issues"] else
                          "; ".join(f"{i['kind']}: {i['detail']}" for i in r["issues"])))
         for f in self.findings:
             lines.append(f"- **scenario {f['path']}**: {f['detail']}")
-        lines += ["", f"Screenshots: {self.out / 'contact.html'}"]
+        if notes:
+            lines += ["", f"Design notes ({notes}; prompts for the design review, not failures):"]
+            for r in self.rows:
+                for d in r.get("design") or []:
+                    lines.append(f"- {r['label']}: {d['kind']}: {d['detail']}")
+        lines += ["", f"Screenshots: {self.out / 'contact.html'}",
+                  f"Design scorecard to fill in (\"no issues\" is not \"looks native\"): {self.out / 'review.md'}"]
         (self.out / "report.md").write_text("\n".join(lines) + "\n")
         print("\n".join(lines))
         return 0 if total == 0 else 1
@@ -332,6 +463,17 @@ class NativeRun(WebRun):
 
     def __init__(self, a):
         self.a = a
+        self.scenario = json.loads(Path(a.scenario).read_text()) if a.scenario else {}
+        self.screens = self.scenario.get("screens") or [{}]
+        names = [sc.get("name") for sc in self.screens]
+        if len(self.screens) > 1 and (None in names or len(set(names)) != len(names)):
+            raise ShotError("every screen in the scenario needs its own \"name\"")
+        self.env = {}
+        for pair in a.env or []:
+            if "=" not in pair:
+                raise ShotError(f"--env wants KEY=VALUE, got {pair!r}")
+            k, v = pair.split("=", 1)
+            self.env[k] = v
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         self.out = Path(a.out) / f"{stamp}-{a.label}"
         (self.out / "shots").mkdir(parents=True, exist_ok=True)
@@ -341,30 +483,56 @@ class NativeRun(WebRun):
         r = subprocess.run(["xcrun", "simctl", "spawn", udid, "launchctl", "list"], capture_output=True, text=True)
         return self.a.bundle in r.stdout
 
+    def launch(self, udid, screen):
+        """Start the app fresh on one screen: launch arguments, environment values, a link, taps."""
+        subprocess.run(["xcrun", "simctl", "terminate", udid, self.a.bundle], capture_output=True)
+        env = dict(os.environ)
+        for k, v in {**self.env, **(screen.get("env") or {})}.items():
+            env[f"SIMCTL_CHILD_{k}"] = str(v)
+        args = [str(x) for x in (screen.get("args") or [])]
+        r = subprocess.run(["xcrun", "simctl", "launch", udid, self.a.bundle, *args], capture_output=True, text=True, env=env)
+        if r.returncode != 0:
+            raise ShotError(f"could not launch {self.a.bundle}: {r.stderr.strip()}")
+        time.sleep(float(screen.get("wait", 3)))
+        if screen.get("url"):
+            subprocess.run(["xcrun", "simctl", "openurl", udid, str(screen["url"])], capture_output=True)
+            time.sleep(1.5)
+        for x, y in screen.get("taps") or []:
+            sim("tap", f"{float(x):.1f}", f"{float(y):.1f}")
+            time.sleep(0.8)
+
     def go(self):
         udid = sim("ensure")
         if self.a.app:
             subprocess.run(["xcrun", "simctl", "install", udid, self.a.app], check=True)
         poses = poses_from(self.a.poses)
-        sim("pose", poses[0])
-        subprocess.run(["xcrun", "simctl", "terminate", udid, self.a.bundle], capture_output=True)
-        r = subprocess.run(["xcrun", "simctl", "launch", udid, self.a.bundle], capture_output=True, text=True)
-        if r.returncode != 0:
-            raise ShotError(f"could not launch {self.a.bundle}: {r.stderr.strip()}")
-        time.sleep(3)
-        for pose in poses:
-            try:
-                st = sim_json("pose", pose)
-            except ShotError as e:
-                self.rows.append({"label": pose, "pose": pose, "shot": "", "thumb": "", "size": "not reached",
-                                  "issues": [{"kind": "pose-unavailable", "detail": str(e).splitlines()[0][:200]}]})
-                continue
-            time.sleep(1.2)
-            shot, th = self.shoot(pose)
-            issues = [] if self.running(udid) else [{"kind": "app-not-running", "detail": f"the app was gone after {pose} (crash?)"}]
-            self.rows.append({"label": pose, "pose": pose, "shot": shot, "thumb": th,
-                              "size": f"{st['activeScreen']} screen, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
-                              "issues": issues})
+        unreachable = {}  # a pose this app cannot reach (an orientation lock): try it once, not once per screen
+        for screen in self.screens:
+            name = screen.get("name")
+            sim("pose", poses[0])
+            self.launch(udid, screen)
+            for pose in poses:
+                label = f"{name} · {pose}" if name else pose
+                if pose in unreachable:
+                    self.rows.append({"label": label, "screen": name, "pose": pose, "shot": "", "thumb": "", "size": "not reached",
+                                      "issues": [{"kind": "pose-unavailable", "detail": "skipped: " + unreachable[pose]}]})
+                    continue
+                try:
+                    st = sim_json("pose", pose)
+                except ShotError as e:
+                    unreachable[pose] = str(e).splitlines()[0][:200]
+                    self.rows.append({"label": label, "screen": name, "pose": pose, "shot": "", "thumb": "", "size": "not reached",
+                                      "issues": [{"kind": "pose-unavailable", "detail": unreachable[pose]}]})
+                    continue
+                time.sleep(1.2)
+                shot, th = self.shoot(f"{name}-{pose}" if name else pose)
+                issues = [] if self.running(udid) else [{"kind": "app-not-running", "detail": f"the app was gone after {pose} (crash?)"}]
+                self.rows.append({"label": label, "screen": name, "pose": pose, "shot": shot, "thumb": th,
+                                  "size": f"{st['activeScreen']} screen, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
+                                  "issues": issues})
+        if len(self.screens) == 1 and not self.screens[0].get("name"):
+            print("duo-shot: only the screen the app opens on was photographed. List every screen in a scenario "
+                  "file (\"screens\") so each one is checked.", file=sys.stderr)
         return self.finish(f"Duo check: {self.a.bundle} ({self.a.label}) - review every screenshot")
 
 
@@ -385,8 +553,15 @@ def main():
         else:
             s.add_argument("--bundle", required=True)
             s.add_argument("--app")
+            s.add_argument("--scenario")
+            s.add_argument("--env", action="append", metavar="KEY=VALUE")
+    c = sub.add_parser("compare")
+    c.add_argument("before")
+    c.add_argument("after")
     a = p.parse_args()
     try:
+        if a.mode == "compare":
+            sys.exit(compare(a.before, a.after))
         run = WebRun(a) if a.mode == "web" else NativeRun(a)
         lock = hold_run_lock()  # kept open until this process ends
         sys.exit(run.go())

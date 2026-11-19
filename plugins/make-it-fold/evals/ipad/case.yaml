@@ -79,25 +79,25 @@ graders:
     source: file
     path: StudioPlanner/ContentView.swift
   pattern: '@State[^\n]*[sS]elect'
-- name: no-redesign-content
+- name: look-kept-content
   type: regex
   target:
     source: file
     path: StudioPlanner/ContentView.swift
   pattern: (?=[\s\S]*struct RoomRow)(?=[\s\S]*Holds )(?=[\s\S]*Pick a room)(?=[\s\S]*ScheduleView)
-- name: no-redesign-layouts
+- name: look-kept-layouts
   type: regex
   target:
     source: file
     path: StudioPlanner/BoardColumns.swift
   pattern: (?=[\s\S]*ThreeColumnBoard)(?=[\s\S]*RoomPanel)(?=[\s\S]*No room selected)
-- name: no-redesign-phone-stack
+- name: look-kept-phone-stack
   type: regex
   target:
     source: file
     path: StudioPlanner/PhoneLayout.swift
   pattern: NavigationStack
-- name: no-redesign-tablet-split
+- name: look-kept-tablet-split
   type: regex
   target:
     source: file

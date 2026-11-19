@@ -19,5 +19,5 @@ A fix that adds `viewport-fit=cover` WITHOUT adding left/right padding is worse 
 A correct run also: keeps the project building (`xcodebuild build -project
 PracticeWrapper.xcodeproj -scheme PracticeWrapper -destination "generic/platform=iOS Simulator"
 CODE_SIGNING_ALLOWED=NO`), says which page the shell loads (the bundled local copy), reports per
-tier (Duo simulator / desktop browser / needs the phone), does not redesign the app, and does not
+tier (Duo simulator / desktop browser / needs the phone), keeps the app's own look (colors, wording, features), scores each screen for design, and does not
 invent bugs outside this list.

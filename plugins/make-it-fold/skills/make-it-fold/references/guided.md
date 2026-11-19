@@ -17,3 +17,6 @@ These routes have no practice app yet. Say "guided route, less proven" in the re
      Handle a live change of the render size (re-create the swap chain or viewport), keep the HUD
      inside the safe area, and pause or keep state across a fold.
 4. Check with `duo-shot native` (or `duo-shot web` for web layers) and look at every screenshot.
+5. Then the design pass: `design.md` scorecard and patterns, built with the framework's own adaptive
+   tools (Flutter: `LayoutBuilder` with a two-pane layout at about 600 and up; games: re-flow the HUD,
+   never letterbox).

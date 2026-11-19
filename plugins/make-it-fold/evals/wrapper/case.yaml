@@ -57,15 +57,15 @@ graders:
     type: regex
     target: { source: file, path: PracticeWrapper.xcodeproj/project.pbxproj }
     pattern: 'dev\.makeitfold\.practice\.wrapper'
-  - name: no-redesign-page
+  - name: look-kept-page
     type: regex
     target: { source: file, path: Web/index.html }
     pattern: '(?=[\s\S]*Trail Notes)(?=[\s\S]*id="count")(?=[\s\S]*class="fab")(?=[\s\S]*id="grid")'
-  - name: no-redesign-colors
+  - name: look-kept-colors
     type: regex
     target: { source: file, path: Web/style.css }
     pattern: '(?=[\s\S]*#2f6b4f)(?=[\s\S]*#f2a93b)(?=[\s\S]*#eef3ee)'
-  - name: no-redesign-notes
+  - name: look-kept-notes
     type: regex
     target: { source: file, path: Web/app.js }
     pattern: '(?=[\s\S]*Ridge loop)(?=[\s\S]*Fern gully)(?=[\s\S]*getElementById\("add"\))'

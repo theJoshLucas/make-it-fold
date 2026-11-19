@@ -100,13 +100,13 @@ graders:
     source: file
     path: style.css
   pattern: hover:\s*none|(?<!:hover )\.del\s*\{(?![^}]*opacity:\s*0)[^}]*\}
-- name: no-redesign-sections-kept
+- name: look-kept-sections-kept
   type: regex
   target:
     source: file
     path: index.html
   pattern: (?=[\s\S]*class="sidebar")(?=[\s\S]*song-table)(?=[\s\S]*save-bar)(?=[\s\S]*Save setlist)
-- name: no-redesign-colors-kept
+- name: look-kept-colors-kept
   type: regex
   target:
     source: file

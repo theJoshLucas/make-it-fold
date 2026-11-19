@@ -9,11 +9,11 @@ Load for every job. Ordered by how often each one bites a Duo job, most first.
 - **Check:** every "fixed" line in the report points at its failing before-run and its passing after-run.
 - **Applies to:** all
 
-### D-02 Redesigning when asked to make it fold
-- **Went wrong:** The most repeated correction in one project was unrequested change: menus moved, steps added, names invented. A narrow-screen restructure shipped and was reverted the same day. An agent read an old chart as a privacy rule and built access walls plus 14 review rounds nobody asked for (the diff later shrank from 2,061 lines to 428). A fix used a pattern the project's own design rules banned.
-- **Spot it:** a diff that touches screens or behaviour no failing check pointed at.
-- **Fix:** change only what a failing assertion requires; "passes, no changes" is a complete result. Read the app's own design rules before adding any UI, and solve with what is already there. Open design questions get the no-behaviour-change default and go on a list for the owner. Any review loop gets a stopping rule written before it starts.
-- **Check:** every hunk in the diff traces to a failing check or to a listed "my call", and the report lists those calls.
+### D-02 Changing what nobody asked for
+- **Went wrong:** The most repeated correction in one project was unrequested change: menus moved, steps added, names invented. An agent read an old chart as a privacy rule and built access walls plus 14 review rounds nobody asked for (the diff later shrank from 2,061 lines to 428). A fix used a pattern the project's own design rules banned.
+- **Spot it:** a diff that changes features, wording, colors, fonts or behaviour on an ordinary iPhone; a new layout that no scorecard line or failing check asked for.
+- **Fix:** a Duo job changes two things only: what breaks, and how each screen is laid out for the Duo's two screens. Read the app's own design rules first and build with what is already there. Everything else stays, and an ordinary iPhone looks the same as before. In a fit-only job, layout stays too. Any review loop gets a stopping rule written before it starts.
+- **Check:** every hunk in the diff traces to a failing check, a scorecard line or a listed "my call", and the report lists those calls.
 - **Applies to:** all
 
 ### D-03 Fixing only the one place you saw it

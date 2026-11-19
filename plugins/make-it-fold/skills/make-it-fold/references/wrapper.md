@@ -10,3 +10,5 @@ Two layers, two checklists: the native shell (`native.md`) and the web page (`we
   shows the fix" is only possible after the page is published, or with a debug-only setting that
   points the shell at the local server (never enabled in release builds). Say which one you used.
 - Rebuild and run the shell on the Duo simulator after the page fix: `duo-shot native`.
+- Design: the page carries the layout (`web.md#duo-native-layout`). If the shell draws its own bars or tabs,
+  those follow `native.md#duo-native-layout`.
