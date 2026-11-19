@@ -12,10 +12,12 @@ Check $ARGUMENTS on the iPhone Duo simulator without changing any code.
   `${CLAUDE_PLUGIN_ROOT}/scripts/duo-shot native --bundle <id> --app <path to .app>` (add
   `--scenario duo/scenario.json` so every screen is shot, not just the first one).
 - Hand that one command to the duo-shooter agent (`make-it-fold:duo-shooter`) to run; its answer is
-  duo-shot's RESULT line. Then run `${CLAUDE_PLUGIN_ROOT}/scripts/duo-models` and hand the duo-judge
-  agent (`make-it-fold:duo-judge`; model "opus" if the judge is unavailable or not chosen) the run
-  folder, the path to `references/design.md` in the `make-it-fold` skill, and one sentence on what the
-  app is for. It writes `judge.md` beside the pictures.
+  duo-shot's RESULT line. Then run `${CLAUDE_PLUGIN_ROOT}/scripts/duo-models` and call the duo-judge
+  agent (`make-it-fold:duo-judge`; model "opus" if the judge is unavailable or not chosen) once per
+  screen, several at a time, handing each the run folder, its one screen, the path to
+  `references/design.md` in the `make-it-fold` skill, and one sentence on what the app is for. Then
+  `${CLAUDE_PLUGIN_ROOT}/scripts/duo-shot verdicts <run folder>` gathers `judge.md`; judge again any
+  screen it lists as missing or unsure.
 - Report in plain words, per screen, the judge's verdict word for word: **native**, **fits only**
   (works, but looks like a stretched phone: say what a native layout would be) or **broken** (say what
   and where), and which model judged. Add what only the

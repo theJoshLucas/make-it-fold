@@ -39,13 +39,30 @@
   - `duo-models`: newest Opus and Sonnet matched; the Fable judge reported unavailable at a usage limit (use Opus);
     a pretend newer Opus gave "behind"; no internet gave "not compared"; no judge chosen gave "ask once".
   - Both agents load from the plugin folder (`claude -p --plugin-dir`): duo-shooter ran a duo-shot and answered
-    with its RESULT line; duo-judge, called normally, hit the Fable limit, was called again on Opus, and scored the
-    buggy Setlist "broken" with three findings that match its planted bugs. On the real app's 54 pictures (Opus,
-    about $2.25 of usage, 3 minutes) it scored all 18 screens "fits only": text-only tabs in the side strip, forms as
-    full-width bottom trays on the inner screen held upright, uneven gaps. At least one of its findings was wrong
-    (it called a two-column list clipped; the picture shows it whole).
+    with its RESULT line; duo-judge, called normally, hit the Fable limit and was called again on Opus.
+- The judge, calibrated (all on Opus, Fable being out). Round 1, one agent judging a whole run: it failed all 18
+  screens of the real app, including on findings that were false (a "clipped" list that is whole, "full-width
+  trays" that are phone-width cards). Checked against screens whose answer is known, it also failed Apple's own
+  Settings app. Three faults, all fixed:
+  - Contradictions in the scorecard: "when in doubt, no" beside "unsure is not a no"; the fold rule applied to
+    flat pictures; "end of a scrolling list" read backwards; Apple's icon rule applied to an app's own tabs.
+  - Every nit failed a screen. Answers are now yes / no / minor / n-a / unsure; a minor is polish that does not
+    change "made for this screen", and Apple's own apps set the bar.
+  - One agent cannot hold a big app's pictures: by the end it "could not see" the early ones, marked them unsure,
+    and unsure counted as a pass. Now one judge call per screen, `duo-shot verdicts` gathers them, and unsure is
+    never a pass.
+  - `dev/judge-check` now proves it on four apps whose verdict is known: Apple's Settings (native), the planted-bug
+    Gig Log (broken), the fixed Gig Log (native) and the stretched-phone Woodshed (fits only). Its first run caught
+    a real flaw in the plugin's own fixed Gig Log (an empty "No gig selected" pane on the big screen; now it shows
+    the first gig) and the fixed Woodshed (its main button is off the bottom of the cover held sideways; still so).
+  - The real app, re-judged per screen: 18 of 18 native, with minors listed; about $4.00 of usage.
 - NOT done / unverified:
-  - The judge has not run on Fable (the maintainer's Fable allowance is used up until 2026-11-22).
+  - The judge has not run on Fable (the maintainer's Fable allowance is used up until 2026-11-22). Run
+    `dev/judge-check fable` before trusting Fable at low effort as the judge.
+  - The same screen can get a different verdict on two judge runs when it is borderline (the fixed Gig Log's list
+    did). `dev/judge-check` catches a judge that drifts on the known screens, not on borderline ones.
+  - The fixed Woodshed (`dev/answers/web-phone/fixed`) is not native on the cover held sideways: its main button
+    is pushed off the bottom. The exam that uses it does not check that.
   - No full `/duo` job has run end to end on the new flow. The exams were not rerun: they run sandboxed with no
     simulator, so they cannot reach the shooter or the judge.
   - `model: opus` in a plugin command header was checked with a test command: it moved a Haiku session onto

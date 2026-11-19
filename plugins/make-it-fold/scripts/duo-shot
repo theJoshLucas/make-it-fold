@@ -28,6 +28,12 @@ COMPARE (two finished runs, side by side):
   duo-shot compare <before folder> <after folder>
   Writes compare.html into the "after" folder: every screen and pose, before beside after.
 
+VERDICTS (after the duo-judge agent has scored each screen of a run, one call per screen):
+  duo-shot verdicts <run folder>
+  Gathers judge/<screen>.md into judge.md, in the run's screen order, prints the table, and names every
+  screen with no verdict yet or an "unsure" one (judge those again). Exit 0 only when every screen has a
+  verdict that is not unsure.
+
 Poses: default = cover-portrait, cover-landscape, cover-landscape-flipped, inner-portrait,
 inner-landscape. all = default + book, laptop.
 
@@ -257,8 +263,8 @@ def review_sheet(outdir, rows, title, settings=None):
     rule = "|" + "---|" * (len(QUESTIONS) + 2)
     lines = [f"# Design review: {title}", "",
              "For the duo-judge agent, never the agent that built the layouts (trap D-15).",
-             "Look at each picture at FULL size (not the thumbnails), answer every `?` and write the",
-             "verdicts to `judge.md` beside this file. The eight questions are in the make-it-fold skill,",
+             "One duo-judge call per screen: it looks at that screen's pictures at FULL size and writes",
+             "`judge/<screen>.md`; `duo-shot verdicts <this folder>` gathers them. The eight questions are in the make-it-fold skill,",
              "`references/design.md`. Answer yes / no / n-a. Verdict: **native**, **fits only** or **broken**.",
              f"Biggest empty patch: the largest area of plain background, as a share of the picture. On the",
              f"inner screen over {EMPTY_FLAG}% means question 1 is a no, unless that area is the end of a scrolling list.",
@@ -279,6 +285,53 @@ def review_sheet(outdir, rows, title, settings=None):
         lines += ["", head, rule, f"| Cover | {blank} | ? |", f"| Inner | {blank} | ? |", "",
                   "If not native, what this screen should become (cover / inner sideways / inner upright): ?", ""]
     (outdir / "review.md").write_text("\n".join(lines) + "\n")
+
+
+def judge_file_name(screen):
+    return screen.replace("/", "_").replace(" ", "_") + ".md"
+
+
+def verdicts(run):
+    """Merge the per-screen judge files into judge.md and say which screens still need a verdict."""
+    run = Path(run)
+    summary = run / "summary.json"
+    if not summary.exists():
+        raise ShotError(f"{run} is not a duo-shot run folder (no summary.json)")
+    order = []
+    for r in json.loads(summary.read_text())["rows"]:
+        if r.get("shot") and screen_of(r) not in order:
+            order.append(screen_of(r))
+    head = ("| Screen | Screen size | 1 room | 2 more | 3 short | 4 bars | 5 fold | 6 forms | 7 same app | 8 deliberate | Verdict |\n"
+            "|---|---|---|---|---|---|---|---|---|---|---|")
+    rows, bodies, missing, unsure, tally = [], [], [], [], {}
+    for name in order:
+        f = run / "judge" / judge_file_name(name)
+        if not f.exists():
+            missing.append(name)
+            continue
+        text = f.read_text()
+        mine = [l for l in text.splitlines() if l.startswith("| ") and not l.startswith("| Screen") and not l.startswith("|---")]
+        verdict = mine[0].rstrip(" |").split("|")[-1].strip().lower() if mine else ""
+        if not mine or verdict not in ("native", "fits only", "broken", "unsure"):
+            missing.append(name)
+            continue
+        if verdict == "unsure":
+            unsure.append(name)
+        tally[verdict] = tally.get(verdict, 0) + 1
+        rows += mine
+        bodies.append(text[text.find("## "):].strip() if "## " in text else "")
+    out = [f"# Design verdicts: {run.name}", "", f"{len(order)} screens; " +
+           ", ".join(f"{n} {v}" for v, n in sorted(tally.items())) + (f"; {len(missing)} not judged" if missing else ""), "",
+           head, *rows, "", *bodies]
+    (run / "judge.md").write_text("\n".join(out) + "\n")
+    print("\n".join([head, *rows]))
+    print(f"\nVerdicts: " + (", ".join(f"{n} {v}" for v, n in sorted(tally.items())) or "none"))
+    if missing:
+        print("No verdict yet (run the duo-judge agent on each): " + ", ".join(missing))
+    if unsure:
+        print("Unsure, so not a pass (run the duo-judge agent on each again): " + ", ".join(unsure))
+    print(f"Written: {run / 'judge.md'}")
+    return 0 if not missing and not unsure else 1
 
 
 def compare(before, after):
@@ -765,10 +818,14 @@ def main():
     c = sub.add_parser("compare")
     c.add_argument("before")
     c.add_argument("after")
+    v = sub.add_parser("verdicts")
+    v.add_argument("run")
     a = p.parse_args()
     try:
         if a.mode == "compare":
             sys.exit(compare(a.before, a.after))
+        if a.mode == "verdicts":
+            sys.exit(verdicts(a.run))
         run = WebRun(a) if a.mode == "web" else NativeRun(a)
         lock = hold_run_lock()  # kept open until this process ends
         sys.exit(run.go())

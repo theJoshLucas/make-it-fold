@@ -32,14 +32,18 @@ struct ContentView: View {
     // Inner screen: the list on the leading side, the open gig beside it.
     private func twoPanes(width: CGFloat) -> some View {
         let listWidth = min(340, max(280, width * 0.36))
+        // With nothing picked yet, the detail pane shows the first gig instead of sitting empty.
+        // It is only shown, not picked, so folding to the cover still lands on the list.
+        let picked = selection.flatMap { id in store.gigs.contains(where: { $0.id == id }) ? id : nil }
+        let shown = picked ?? store.gigs.first?.id
         return HStack(spacing: 0) {
             NavigationStack {
-                gigList(width: listWidth, pushes: false)
+                gigList(width: listWidth, pushes: false, highlighted: shown)
             }
             .frame(width: listWidth)
             Divider()
             NavigationStack {
-                if let id = selection, store.gigs.contains(where: { $0.id == id }) {
+                if let id = shown {
                     DetailView(store: store, gigID: id, wide: width - listWidth > 500)
                         .id(id)
                 } else {
@@ -49,7 +53,7 @@ struct ContentView: View {
         }
     }
 
-    private func gigList(width: CGFloat, pushes: Bool) -> some View {
+    private func gigList(width: CGFloat, pushes: Bool, highlighted: Gig.ID? = nil) -> some View {
         ZStack(alignment: .bottomTrailing) {
             List(store.gigs) { gig in
                 if pushes {
@@ -63,7 +67,7 @@ struct ContentView: View {
                         GigRow(gig: gig, width: width - 64)
                     }
                     .buttonStyle(.plain)
-                    .listRowBackground(selection == gig.id ? Color.indigo.opacity(0.14) : nil)
+                    .listRowBackground(highlighted == gig.id ? Color.indigo.opacity(0.14) : nil)
                 }
             }
             Button {

@@ -1,0 +1,54 @@
+#!/bin/bash
+# Judge check: does the duo-judge agent give the right verdict on screens whose answer is known?
+# Costs Claude usage (about $1.50 on Opus) and about 12 minutes of the Duo simulator. Ask before running.
+#   dev/judge-check [opus|fable]     (default opus; fable only when the maintainer's Fable allowance has room)
+# Known answers:
+#   Apple's own Settings app, first page ............ native  (Apple's own Duo layout: the bar)
+#   practice/native (Gig Log, planted bugs) ......... broken
+#   dev/answers/native/fixed (Gig Log, two panes) ... native
+#   practice/web-phone (a stretched phone layout) ... fits only, on every screen
+# A change to the scorecard, the judge's instructions or its model is not done until this passes.
+set -uo pipefail
+cd "$(dirname "$0")/.."
+ROOT=$(pwd); PL="$ROOT/plugins/make-it-fold"; P="$PL/scripts"
+MODEL="${1:-opus}"
+OUT="${TMPDIR:-/tmp}/make-it-fold-judge-check/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$OUT"
+UDID=$("$P/duo-sim" ensure) || { echo "judge-check: no Duo simulator"; exit 2; }
+build() { (cd "$1" && xcodebuild build -project GigLog.xcodeproj -scheme GigLog -destination "id=$UDID" -derivedDataPath "$OUT/$2" CODE_SIGNING_ALLOWED=NO -quiet >/dev/null 2>&1) && echo "$OUT/$2/Build/Products/Debug-iphonesimulator/GigLog.app"; }
+GIG_SCEN="$OUT/gig.json"; printf '{"backend":"mocked","screens":[{"name":"list"},{"name":"gig","taps":[[120,160]],"wait":3}]}' > "$GIG_SCEN"
+POSES=cover-portrait,cover-landscape,inner-portrait,inner-landscape
+shoot() {  # one picture run; tried a second time if it printed no RESULT line (a simulator still waking up)
+  local log="$OUT/shoot-$#-$RANDOM.txt"
+  for try in 1 2; do
+    "$P/duo-shot" "$@" --out "$OUT/shots" > "$log" 2>&1
+    if grep -q '^RESULT ' "$log"; then grep '^RESULT ' "$log" | sed 's/^RESULT //' | python3 -c "import json,sys; print(json.load(sys.stdin)['run'])"; return; fi
+    echo "judge-check: a picture run printed no RESULT (try $try): $(tail -2 "$log" | tr '\n' ' ')" >&2
+  done
+}
+RUNS=()
+RUNS+=("native|$(shoot native --bundle com.apple.Preferences --poses $POSES --label settings)|Apple's own Settings app, opened on its first page")
+APP=$(build "$PL/practice/native" buggy) && RUNS+=("broken|$(shoot native --bundle dev.makeitfold.practice.native --app "$APP" --scenario "$GIG_SCEN" --poses $POSES --label giglog-buggy)|Gig Log, a list of a band's gigs where each gig opens to its details and notes")
+APP=$(build "$ROOT/dev/answers/native/fixed" fixed) && RUNS+=("native|$(shoot native --bundle dev.makeitfold.practice.native --app "$APP" --scenario "$GIG_SCEN" --poses $POSES --label giglog-fixed)|Gig Log, a list of a band's gigs where each gig opens to its details and notes")
+(cd "$PL/practice/web-phone" && exec python3 -m http.server 8951 --bind 127.0.0.1 >/dev/null 2>&1) & SRV=$!
+python3 -c "import time; time.sleep(1)"
+RUNS+=("fits only|$(shoot web --url http://localhost:8951 --scenario "$ROOT/dev/answers/web-phone/fixed/duo/scenario.json" --label woodshed-phone)|Woodshed, a practice log for a musician: a list of practice sessions with weekly totals, each session opens to its notes, and a form adds a new session")
+kill $SRV 2>/dev/null
+"$P/duo-sim" shutdown >/dev/null 2>&1
+fails=0
+judge_one() {  # judge_one <run> <screen> <what>
+  (cd "$1" && env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p --plugin-dir "$PL" --model haiku \
+     --allowedTools "Agent" "Read" "Write" "Glob" --output-format json \
+     "Use the make-it-fold:duo-judge agent with model $MODEL. Give it exactly these and nothing else: the run folder $1; the one screen to judge: $2; the scorecard path $PL/skills/make-it-fold/references/design.md; settings: none set; what the app is: $3; design choices the owner made before this job: none. Then reply with only the two table rows it wrote." \
+     < /dev/null > "$1/judge-$(echo "$2" | tr '/ ' '__').json" 2>&1)
+}
+for row in "${RUNS[@]}"; do
+  IFS='|' read -r want run what <<< "$row"
+  [ -d "$run" ] || { echo "FAIL  no pictures for: $what"; fails=$((fails+1)); continue; }
+  while IFS= read -r screen; do judge_one "$run" "$screen" "$what" & done < <(grep '^## ' "$run/review.md" | sed 's/^## //')
+  wait
+  "$P/duo-shot" verdicts "$run" > "$run/verdicts.txt" 2>&1
+  got=$(grep '^| ' "$run/judge.md" 2>/dev/null | grep -v '^| Screen\|^|---' | awk -F'|' '{gsub(/^ +| +$/,"",$12); print $12}' | sort -u | paste -sd, -)
+  if [ "$got" = "$want" ]; then echo "pass  $what: $got"; else echo "FAIL  $what: wanted $want, got ${got:-nothing}"; fails=$((fails+1)); fi
+done
+echo "pictures and verdicts: $OUT"
+[ $fails -eq 0 ] && echo "judge check passed" || { echo "judge check: $fails wrong"; exit 1; }

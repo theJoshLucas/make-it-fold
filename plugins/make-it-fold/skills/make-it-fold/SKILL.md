@@ -91,13 +91,18 @@ inside 10 minutes). Its answer is duo-shot's `RESULT` line: every name under `bl
 looked at before anything is judged. Run nothing else on the simulator while it shoots.
 
 **4. The judge scores, then you plan.** `duo-shot` writes a `review.md` beside the pictures, with the
-biggest empty patch measured on each one. Hand the duo-judge agent (`make-it-fold:duo-judge`; model
-"opus" if step 0 said the judge is unavailable) only these: the run folder, the path to
-`${CLAUDE_SKILL_DIR}/references/design.md`, the owner's settings, and one sentence on what the app is
-for. Never your plan, your code or your opinion of the screens. It writes `judge.md` beside the
-pictures: the eight answers for the cover and the inner screen, a verdict per screen (**native**,
-**fits only** or **broken**) and the three worst things on each. Those verdicts are final: you may add a
-line saying you disagree, never change one. (No simulator in this session: write the scorecard in
+biggest empty patch measured on each one. Call the duo-judge agent (`make-it-fold:duo-judge`; model
+"opus" if step 0 said the judge is unavailable) **once per screen**, several at a time: one agent
+holding every picture of a big app stops seeing the early ones. Hand each call only these: the run
+folder, the one screen to judge (its `## ` heading in `review.md`), the path to
+`${CLAUDE_SKILL_DIR}/references/design.md`, the owner's settings, one sentence on what the app is
+for, and any design choices the owner made before this job, quoted from the app's own design rules as
+they were before you started (never something this job decided). Never your plan, your code or your
+opinion of the screens. Each call writes `judge/<screen>.md`: the eight answers for the cover and the
+inner screen, a verdict (**native**, **fits only**, **broken** or **unsure**) and the three worst things.
+Then `duo-shot verdicts <run folder>` gathers them into `judge.md` and names any screen with no verdict
+or an **unsure** one: judge those again (unsure is never a pass). Those verdicts are final: you may add
+a line saying you disagree, never change one. (No simulator in this session: write the scorecard in
 `duo/review.md` from the code yourself, every verdict **built, not seen**.) Then write the layout plan,
 one line per screen that is not native: what it becomes on the cover, on the inner screen sideways
 (what an unfolding phone shows first) and on the inner screen upright, using the patterns table.
@@ -119,7 +124,7 @@ the same result. Native: guard iOS 27.1 APIs with `if #available(iOS 27.1, *)`.
 
 **6. After.** The duo-shooter agent runs the same `duo-shot` with `--label after` (add `--poses all`
 for the half-open poses); then `duo-shot compare <before folder> <after folder>` for the side-by-side
-page. The duo-judge agent scores the new run, the same way as in step 4. Then the normal-phone check: web at 390 px, a phone sideways (about 850 x 390) and the
+page. The duo-judge agent scores the new run, one call per screen, the same way as in step 4. Then the normal-phone check: web at 390 px, a phone sideways (about 850 x 390) and the
 app's desktop width; native on an iPhone 17 Pro simulator on iOS 27, upright and sideways, and on
 the app's minimum iOS. It must match "before". Up to 3
 build, shoot and judge rounds. Still not native after 3: stop and report what is left.

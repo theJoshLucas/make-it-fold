@@ -55,21 +55,37 @@ thing every Duo owner sees. Design it first, not last.
 
 ## The scorecard (for every screen, on BOTH screens)
 The **duo-judge** agent fills it in from the screenshots, never the agent that built the layouts
-(SKILL.md step 4). One line per screen, each question yes or no. When in doubt, the answer is no.
+(SKILL.md step 4). One line per screen, each question **yes**, **no**, **minor**, **n-a** or **unsure**.
+A **no** is something a person would notice as "this was not made for this screen": a stretched phone
+column, a large area the layout leaves empty, nothing more shown than on the cover, a full-width tray
+of a form, text or buttons on the crease when half-open, a bar covering content. A **minor** is polish
+that does not change that impression: a label wrapping, a gap slightly uneven, a control a little far
+from its label. The bar is Apple's own apps: Settings on a Duo is native, so anything it also does is
+at most a minor. Doubt about whether a problem is a no or a minor is a no. Doubt about what a picture shows (too small or unclear to be sure) is "unsure", not a no.
+Answer each question only from the pictures it is about: question 3 from cover pictures, question 5 from
+half-open (book, laptop) pictures, the rest from the screen named in the row.
 
 1. **Uses the room.** No phone column stretched edge to edge. No button, field, card or bar wider
    than a phone would make it (about 560 points) unless it is a real full-width surface. No large
    empty area: `duo-shot` measures the biggest empty patch on every picture, and on the inner screen
-   a patch over 25% of the screen is a no unless it is the end of a scrolling list. A column that
-   stops halfway down, a list in a third of the width, or a block alone in open space is a no.
+   a patch over 25% of the screen is a no when the layout leaves it empty: a column that stops halfway
+   down while the screen has room for more of the app, a list squeezed into a third of the width, a
+   block alone in open space. Space below the last item of a list or below the end of a page, because
+   the app has only that much to show, is not a no by itself (the test data should be realistic, trap
+   T-20); say that is what it is.
 2. **Shows more.** The inner screen shows something the cover cannot: a second pane, more columns,
    the list beside the open item. The same amount drawn bigger is a no.
 3. **Built for short.** On the cover (678 tall upright, 466 tall sideways) the main information and
    the main action are visible without scrolling, and nothing needed sits under the side rail.
 4. **Bars are the system's.** Navigation, tabs and toolbar actions sit where iOS puts them in this
-   pose, every item is reachable, and no custom bar fights the rail or hides behind the tab bar.
-5. **Clear of the fold.** In book and laptop poses nothing important straddles the middle, and
-   panes or columns divide at the fold.
+   pose, every item is reachable, and no custom bar fights the rail or hides behind the tab bar. An app
+   whose own design rules require its own tab bar may stand it inside the system's side strip (trap
+   G-08): that is a yes when nothing is covered and every tab can be reached. Apple's icon-and-title
+   rule is about items the system places in its own bars; it does not apply to tabs an app draws itself.
+5. **Clear of the fold.** Judged from half-open (book, laptop) pictures only; with none in the run,
+   n-a. In them, nothing being read or tapped (body text, a button, a field) sits on the crease, and two
+   equal panes meet at the fold. Lying flat, the fold does not matter: a slim list pane beside a wider
+   detail pane is the normal flat layout.
 6. **Forms and sheets sized for the screen.** On the inner screen a form is a side panel, a column
    or a centred card, not a tray as wide as the whole screen. Text lines stay readable
    (45 to 90 characters).
@@ -78,7 +94,9 @@ The **duo-judge** agent fills it in from the screenshots, never the agent that b
 8. **Looks deliberate.** Even spacing, aligned edges, no fence-post gaps (a few small items spread
    across a wide row), no lonely block floating in empty space, touch targets at least 44 points.
 
-Verdict per screen: **native** (all yes), **fits only** (nothing broken, but a no on 1, 2, 5, 6 or 8),
+Verdict per screen: **native** (no answer is a no; minors are listed, not counted), **unsure** (an answer
+could not be read from the pictures: judge it again, never a pass), **fits only** (nothing broken, but a no
+on any question),
 **broken** (a fit failure). A layout nobody could look at (no simulator, no browser) is **built, not
 seen**, never native. Pictures taken at the default text size, with an empty data set or without the
 owner's usual settings, when the owner uses something else, prove nothing about what the owner will
@@ -91,7 +109,7 @@ Pick the pattern from what the screen IS. Width words: *narrow* = under about 60
 
 | Screen | Narrow (cover) | Wide (inner) |
 |---|---|---|
-| List that opens an item | list, push to the item | list on the leading side, the open item beside it; the selection survives a fold |
+| List that opens an item | list, push to the item | list on the leading side, the open item beside it; the selection survives a fold; with nothing picked yet, show the first or latest item, not an empty placeholder (plugin rule) |
 | Home / dashboard (summary, actions, recent) | one column, summary and the main actions first | two columns: summary and status on one side, actions and the recent list on the other |
 | Form / entry sheet | sheet from the bottom | a side panel or a centred card about 480 to 560 points wide; the screen behind stays visible |
 | Settings | list, push to a page | menu on the leading side, the chosen page beside it |

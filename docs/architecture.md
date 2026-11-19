@@ -15,8 +15,11 @@ A Claude Code plugin, published from this repo as its own marketplace.
     for the turn (Claude Code returns to the person's own model on their next message).
   - `agents/duo-shooter.md` (`model: sonnet`, Bash only): runs the duo-shot command it is handed, in the
     foreground, and answers with duo-shot's RESULT line. `agents/duo-judge.md` (`model: fable`,
-    `effort: low`; Read, Write, Glob): scores a run folder's pictures against `references/design.md` and
-    writes `judge.md` there. The builder hands it only the run folder, the scorecard path, the owner's
+    `effort: low`; Read, Write, Glob): scores ONE screen of a run folder against `references/design.md` and
+    writes `judge/<screen>.md` there; the builder makes one call per screen (one agent holding a whole
+    big app's pictures stops seeing the early ones), and `duo-shot verdicts <run>` gathers them into
+    `judge.md`, naming any screen missing or "unsure" (never a pass). `dev/judge-check` (costs usage)
+    proves the judge on four apps whose verdict is known, Apple's own Settings among them. The builder hands it only the run folder, the scorecard path, the owner's
     settings and one sentence about the app; it calls it with model "opus" when `duo-models` says Fable
     is unavailable or was not chosen. Plugin agents are invoked as `make-it-fold:<name>`.
   - `scripts/`: `duo-setup` (checks the Mac, installs the pinned duoctl, creates "Duo Kit"),
