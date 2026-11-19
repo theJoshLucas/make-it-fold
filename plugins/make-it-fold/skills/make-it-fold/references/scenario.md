@@ -46,6 +46,9 @@ Each screen may use `args` (launch arguments), `env` (environment values the app
 (seconds to settle, default 3). Most apps need a small debug-only switch to open a screen directly
 with made-up data: add one (never in release builds) and write it in `duo/notes.md`. Include every
 sheet, form and menu: they are where a stretched layout shows most.
+With many screens add `--order pose`: it folds once and then starts every screen in that pose, which is many
+times faster when a fold is slow (trap T-18). It cannot be used with `taps`, and it does not show a fold in the
+middle of a task: do one run in the default order on a single screen for that.
 
 ## backend (required): never test against live data
 - `local-sandbox`: a throwaway local database with made-up data. Writes allowed.

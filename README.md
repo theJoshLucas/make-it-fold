@@ -307,8 +307,8 @@ The plugin learns in three ways:
 - 📓 **From your own jobs.** When a job hits something new, Claude writes the lesson into a notebook
   on your Mac (`~/.config/make-it-fold/notebook.md`) without being asked, and reads that notebook
   at the start of the next job. It survives plugin updates.
-- 🪤 **From everyone.** The plugin ships with 73 hard-won lessons ("traps"): what went wrong, how to
-  spot it, the fix, and a check. Twelve of them are about design: the ways an app can fit and
+- 🪤 **From everyone.** The plugin ships with 75 hard-won lessons ("traps"): what went wrong, how to
+  spot it, the fix, and a check. Fourteen of them are about design: the ways an app can fit and
   still look wrong. After saving a lesson, Claude offers to send it here as
   [an issue](https://github.com/theJoshLucas/make-it-fold/issues) (it asks first), so the next
   version can teach it to everyone.

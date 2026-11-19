@@ -11,11 +11,13 @@ WEB (a site running on your own computer, e.g. a dev server on localhost:5173):
 
 NATIVE (an iPhone/iPad app):
   duo-shot native --bundle <bundle id> [--app <path to .app>] [--scenario duo/scenario.json]
-                  [--env KEY=VALUE ...] [--poses ...] [--label ...] [--out ...]
+                  [--env KEY=VALUE ...] [--order screen|pose] [--poses ...] [--label ...] [--out ...]
   Installs (if --app), launches, and screenshots every pose. With a scenario that lists
   "screens", it relaunches the app once per screen (launch arguments, environment values, a link
   to open, or taps) and shoots each one in every pose; without one it only sees the screen the
-  app opens on. Native layout is judged from the screenshots plus the app's own UI tests;
+  app opens on. --order pose folds once and then photographs every screen in that pose (much
+  faster for many screens, since a fold can take a minute; it does not show a fold in mid-task).
+  Native layout is judged from the screenshots plus the app's own UI tests;
   duo-shot only checks the app is still running.
 
 COMPARE (two finished runs, side by side):
@@ -501,11 +503,43 @@ class NativeRun(WebRun):
             sim("tap", f"{float(x):.1f}", f"{float(y):.1f}")
             time.sleep(0.8)
 
+    def go_by_pose(self, udid, poses):
+        """Fold once, then start every screen in that pose and photograph it. A fold can take a minute on an
+        app with an orientation lock, so for a design review of many screens this is many times faster than
+        folding through every pose for each screen. It does NOT show a screen surviving a fold: keep at least
+        one run in the default order (or a scenario step) for that."""
+        if any(sc.get("taps") for sc in self.screens):
+            raise ShotError("--order pose cannot be used with screens reached by \"taps\" (tap points differ in every pose)")
+        for pose in poses:
+            try:
+                st = sim_json("pose", pose)
+            except ShotError as e:
+                why = str(e).splitlines()[0][:200]
+                for screen in self.screens:
+                    name = screen.get("name")
+                    self.rows.append({"label": f"{name} · {pose}" if name else pose, "screen": name, "pose": pose, "shot": "", "thumb": "",
+                                      "size": "not reached", "issues": [{"kind": "pose-unavailable", "detail": why}]})
+                continue
+            for screen in self.screens:
+                name = screen.get("name")
+                self.launch(udid, screen)
+                shot, th = self.shoot(f"{name}-{pose}" if name else pose)
+                issues = [] if self.running(udid) else [{"kind": "app-not-running", "detail": f"the app was gone in {pose} (crash?)"}]
+                self.rows.append({"label": f"{name} · {pose}" if name else pose, "screen": name, "pose": pose, "shot": shot, "thumb": th,
+                                  "size": f"{st['activeScreen']} screen, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
+                                  "issues": issues})
+        # Keep the report grouped by screen, in the scenario's order.
+        order = {sc.get("name"): i for i, sc in enumerate(self.screens)}
+        self.rows.sort(key=lambda r: (order.get(r.get("screen"), 0), poses.index(r["pose"])))
+        return self.finish(f"Duo check: {self.a.bundle} ({self.a.label}) - review every screenshot")
+
     def go(self):
         udid = sim("ensure")
         if self.a.app:
             subprocess.run(["xcrun", "simctl", "install", udid, self.a.app], check=True)
         poses = poses_from(self.a.poses)
+        if self.a.order == "pose":
+            return self.go_by_pose(udid, poses)
         unreachable = {}  # a pose this app cannot reach (an orientation lock): try it once, not once per screen
         for screen in self.screens:
             name = screen.get("name")
@@ -555,6 +589,7 @@ def main():
             s.add_argument("--app")
             s.add_argument("--scenario")
             s.add_argument("--env", action="append", metavar="KEY=VALUE")
+            s.add_argument("--order", choices=["screen", "pose"], default="screen")
     c = sub.add_parser("compare")
     c.add_argument("before")
     c.add_argument("after")

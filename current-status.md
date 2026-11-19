@@ -1,5 +1,15 @@
 # Current status
 
+## 2026-11-19: v0.2.1, after the first full job on a real app
+- The full native job ran end to end on a real 16-screen SwiftUI app (the one that exposed v0.1.0's miss):
+  before and after pictures in three positions, a scorecard, new layouts, a fold in the middle of a form, dark
+  mode, the largest text size, and an ordinary-iPhone comparison. The owner has the pictures; not yet judged by
+  them, and not yet on a real Duo.
+- From that job: `duo-shot native --order pose` (48 pictures in 5 minutes where screen-by-screen was heading for
+  an hour), traps T-18 and G-14, and G-08 now allows an app whose own design requires a custom bar to stand its
+  tabs inside the system's strip. 75 traps.
+- Not rerun: the exams (the instruction changes are two new traps and one widened fix line).
+
 ## 2026-11-18: v0.2.0, the job is now "Duo-native", not "nothing broke"
 - Why: v0.1.0 told agents "no redesigns" and graded every picture on fit only. Run on a real app it reported
   "passes in every pose" while the inner screen showed a stretched phone layout. v0.2.0 changes what done means.

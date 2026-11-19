@@ -55,7 +55,7 @@ The scorecard and the patterns are in `references/design.md`.
 ### G-08 A custom bar that will not move to the rail
 - **Went wrong:** A hand-drawn tab bar stayed pinned to the bottom on the cover while iOS moved its own bars to the side rail. The 678 point tall screen lost a strip to the custom bar, and on the inner screen sideways the bar covered content. In another app the answer was a hand-made side rail: now there were two rails, the system's and the app's.
 - **Spot it:** a tab bar or toolbar that is a custom view rather than the system's (a row of buttons at the bottom, a JavaScript tab bar).
-- **Fix:** move to the system's tab view and toolbar (SwiftUI `TabView`, UIKit `UITabBarController`, Expo Router `NativeTabs`) so iOS places them. Never build your own side rail. Only if the bar does something the system's cannot: keep it where it is, pad it with the safe area on all four sides, keep every item, and list the move to system bars under Still open.
+- **Fix:** move to the system's tab view and toolbar (SwiftUI `TabView`, UIKit `UITabBarController`, Expo Router `NativeTabs`) so iOS places them. Never build a second rail beside the system's. Two exceptions, both listed in the report as your call: if the app's own design rules require its own bar, stand its tabs inside the system's strip (one side safe-area inset of 60 points or more with the other under 30), bottom aligned under the clock, and drop the bottom bar there; if the bar does something no bar in the strip could, keep it where it is, padded with the safe area on all four sides.
 - **Check:** on the cover and inner-landscape pictures, navigation runs down a side in the system's rail and content gets the full height.
 - **Applies to:** native / iPad / Expo
 
@@ -93,4 +93,11 @@ The scorecard and the patterns are in `references/design.md`.
 - **Fix:** `-webkit-text-size-adjust: 100%; text-size-adjust: 100%;` on `html`, inside the wide rules so ordinary phones stay exactly as they were. Never `none`.
 - **Check:** the longest paragraph's font size is the same in the cover and inner pictures (`duo-shot` measures it).
 - **Applies to:** web / home-screen / wrapper
+
+### G-14 Two columns that miss the fold
+- **Went wrong:** Unfolded and sideways, two equal columns were laid out in the app's own space. The system's strip down one side means that space is not centred on the screen, so the gap between the columns sat 42 points to one side of the fold, and half-open the fold ran through the second column's text.
+- **Spot it:** hand-built columns sized as half of the view's width while a side safe-area inset is large on one side; in the book-pose picture the gap is not at the middle.
+- **Fix:** end the first column at half of the whole screen's width, strip included (less the strip when it is on the leading side), and give the second column the rest. System split and arrangement views do this themselves.
+- **Check:** in the book-pose picture the column gap is at half the picture's width.
+- **Applies to:** native / iPad / Expo
 

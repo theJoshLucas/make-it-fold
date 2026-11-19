@@ -17,7 +17,8 @@ A Claude Code plugin, published from this repo as its own marketplace.
     `duo-scan` (static suspects + surfaces + which recipes to read),
     `duo-shot` (web: proxies the app through `duo-listen`, injects `duo-reporter.js`, measures in every pose;
     native: install, then one launch per scenario screen (launch arguments, environment values, a link,
-    taps) and a screenshot of each in every pose; `compare` puts two runs side by side),
+    taps) and a screenshot of each in every pose, or with `--order pose` one fold per pose and every screen
+    started in it; `compare` puts two runs side by side),
     `duo-listen` (localhost-only server/proxy), `duo-reporter.js`,
     `duo-docs` (downloads Apple's Duo pages on every run; see below), `duo-notes` (the local lessons notebook).
   - `tools/duoctl.pin`: the reviewed duoctl commit. `/duo-setup` clones exactly that commit into

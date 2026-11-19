@@ -122,3 +122,11 @@ Duo simulator facts used below: display ID 1 = cover, 3 = inner; cover screensho
 - **Fix:** start every check with a clean Safari (`duo-sim reset-safari`, done by `duo-shot`), send questions only to the page this run loaded, and read only after the page has stopped resizing for 2 seconds.
 - **Check:** two readings 2 seconds apart agree, and the inner screen reads 669 x 867 / 951 x 585 with toolbars shown.
 - **Applies to:** web / home-screen / wrapper
+
+### T-18 Folding through every pose for every screen
+- **Went wrong:** On an app with an orientation lock each fold took about 70 seconds in the simulator. A 16-screen scenario shot screen by screen (three or more folds each) was heading for over an hour, and the run looked stalled. A second run crossed midnight halfway and its "today" list emptied.
+- **Spot it:** a multi-screen native run producing one picture a minute; before and after pictures of a day view with different numbers of rows.
+- **Fix:** `duo-shot native --order pose` folds once and then starts every screen in that pose (48 pictures in 5 minutes). Keep one run in the default order on one screen, with taps, to prove a fold in the middle of a task. Seed made-up entries for the current day right before shooting.
+- **Check:** time one `duo-sim pose` call before a long scenario; the run's minutes are about the number of poses plus a few seconds a screen.
+- **Applies to:** native / iPad / Expo
+
