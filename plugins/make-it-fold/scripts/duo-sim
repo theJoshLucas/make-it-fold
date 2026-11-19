@@ -34,8 +34,10 @@ from pathlib import Path
 
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold"
 STATE_FILE = CACHE / "duo-kit.json"
-LOCK_FILE = CACHE / "duo-sim.lock"
-RUN_LOCK = CACHE / "duo-run.lock"
+# One pair of locks per simulator: two Duo simulators (DUO_SIM_UDID) can work side by side.
+_ONE = f"-{os.environ['DUO_SIM_UDID']}" if os.environ.get("DUO_SIM_UDID") else ""
+LOCK_FILE = CACHE / f"duo-sim{_ONE}.lock"
+RUN_LOCK = CACHE / f"duo-run{_ONE}.lock"
 SIM_NAME = "Duo Kit"
 DEVICE_TYPE = "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo"
 PINNED = (Path(__file__).resolve().parent.parent / "tools" / "duoctl.pin").read_text().split()[0] \

@@ -105,7 +105,8 @@ def hold_run_lock(wait=900):
         return None
     cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold"
     cache.mkdir(parents=True, exist_ok=True)
-    fh = open(cache / "duo-run.lock", "w")
+    one = f"-{os.environ['DUO_SIM_UDID']}" if os.environ.get("DUO_SIM_UDID") else ""
+    fh = open(cache / f"duo-run{one}.lock", "w")  # one lock per simulator, so two can shoot at once
     deadline, told = time.time() + wait, False
     while True:
         try:

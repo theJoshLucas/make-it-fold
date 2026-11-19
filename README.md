@@ -55,9 +55,10 @@ When you type `/duo` inside an app's folder, Claude:
    is never working from an old copy. It also reads its own notebook of lessons from earlier jobs.
 3. 🔍 **Scans the code** for patterns that usually break on a Duo. These are suspects, not convictions.
 4. 📸 **Takes "before" pictures of every screen**, folding the simulator into every position: cover
-   upright, cover sideways (both ways), inner upright, inner sideways, and half-open on request. It
-   uses your own text size and settings, waits for each screen to stop moving, and retakes any picture
-   that comes out blank.
+   upright, cover sideways (both ways), inner upright and inner sideways. It asks whether you also want
+   the two half-open positions (book and laptop: they show what sits on the crease, and take a few more
+   minutes). It uses your own text size and settings, waits for each screen to stop moving, and retakes
+   any picture that comes out blank.
 5. 🧐 **A separate judge scores each screen for design**, on the cover and on the inner screen, with
    eight plain questions (does it use the room? does it show more? is the form sized for the screen?)
    and a measured "biggest empty patch" on every picture. The judge sees only the pictures, never the
@@ -80,7 +81,7 @@ you how each screen scores.
 |---|---|---|
 | The job itself: reading, planning, building | The newest **Opus**, high effort | The hard part |
 | Taking the pictures (the `duo-shooter` helper) | The newest **Sonnet** | It only runs one command. In a test of 2 runs each, Haiku came out cheaper per word but wandered off the instructions both times; Sonnet followed them both times |
-| Scoring the pictures (the `duo-judge` helper) | The newest **Fable**, low effort, or **Opus** | A different Claude from the builder, shown only the pictures |
+| Scoring the pictures (the `duo-judge` helper) | The newest **Fable**, low effort, or **Opus** | A different Claude from the builder, shown only the pictures, one screen at a time. Its bar is Apple's own apps: it scores Apple's Settings, Photos and Maps native |
 
 At the start of each job the plugin reads Anthropic's live list of models and checks which model
 each name ("opus", "sonnet", "fable") points to in your Claude Code. If your Claude Code is behind,

@@ -82,12 +82,16 @@ and full states. Put them in `duo/scenario.json` (`references/scenario.md`) with
 fold-in-the-middle-of-a-task step. **Shoot what the owner sees** (trap T-20): find out, or ask, the
 owner's text size and any set-up the app remembers (who is signed in, a first-run question already
 answered), put them in the scenario's `defaults` (native) or the app's own state (web), and seed a
-realistic amount of made-up data. Run the app locally, never against live data. Then hand the
+realistic amount of made-up data. **Ask the person once** whether to also photograph the two
+half-open positions, book (unfolded sideways, bent like a book) and laptop (unfolded upright, bent like
+a laptop): they are the only pictures that show what sits on the crease, and they add about two folds
+plus a few seconds a screen (say the minutes for this app). Write the answer in `duo/notes.md` for
+next time; never skip them without asking. Run the app locally, never against live data. Then hand the
 duo-shooter agent (`make-it-fold:duo-shooter`) the exact command:
 `duo-shot web --url <local url> --scenario duo/scenario.json --label before` or
 `duo-shot native --bundle <id> --app <path> --scenario duo/scenario.json --label before`
-(full paths; for more than about 15 screens, one command per pose with `--poses <pose>`, so each finishes
-inside 10 minutes). Its answer is duo-shot's `RESULT` line: every name under `blank` or `moving` gets
+with full paths and `--poses` set to the positions agreed above. It runs the command in the background
+and waits for it to finish. Its answer is duo-shot's `RESULT` line: every name under `blank` or `moving` gets
 looked at before anything is judged. Run nothing else on the simulator while it shoots.
 
 **4. The judge scores, then you plan.** `duo-shot` writes a `review.md` beside the pictures, with the
@@ -122,8 +126,8 @@ unrelated clean-up. Phones keep their look, not their bugs: a rule that picks a 
 orientation, device type or screen size is still replaced, with a width rule that gives phones
 the same result. Native: guard iOS 27.1 APIs with `if #available(iOS 27.1, *)`.
 
-**6. After.** The duo-shooter agent runs the same `duo-shot` with `--label after` (add `--poses all`
-for the half-open poses); then `duo-shot compare <before folder> <after folder>` for the side-by-side
+**6. After.** The duo-shooter agent runs the same `duo-shot` with `--label after`, in the same positions
+as "before" (book and laptop too if the person said yes); then `duo-shot compare <before folder> <after folder>` for the side-by-side
 page. The duo-judge agent scores the new run, one call per screen, the same way as in step 4. Then the normal-phone check: web at 390 px, a phone sideways (about 850 x 390) and the
 app's desktop width; native on an iPhone 17 Pro simulator on iOS 27, upright and sideways, and on
 the app's minimum iOS. It must match "before". Up to 3

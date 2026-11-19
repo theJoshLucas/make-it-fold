@@ -60,8 +60,13 @@ A **no** is something a person would notice as "this was not made for this scree
 column, a large area the layout leaves empty, nothing more shown than on the cover, a full-width tray
 of a form, text or buttons on the crease when half-open, a bar covering content. A **minor** is polish
 that does not change that impression: a label wrapping, a gap slightly uneven, a control a little far
-from its label. The bar is Apple's own apps: Settings on a Duo is native, so anything it also does is
-at most a minor. Doubt about whether a problem is a no or a minor is a no. Doubt about what a picture shows (too small or unclear to be sure) is "unsure", not a no.
+from its label. The bar is Apple's own apps on the Duo: a plugin that demands more than Apple's own
+apps do would send every job round its three build rounds and still not finish. Anything Apple's apps
+also do is at most a minor. Doubt about whether a problem is a no or a minor is a no. Pictures of an
+empty app prove nothing about the room: when the screen's main content is an empty state (a "No items"
+message, a blank list or a blank day where the app is meant to show the person's things), questions 1
+and 2 are "unsure", and the pictures are taken again with realistic made-up data (trap T-20). One empty
+section on an otherwise full screen ("0 favorites" under a map) is not an empty app: judge the screen. Doubt about what a picture shows (too small or unclear to be sure) is "unsure", not a no.
 Answer each question only from the pictures it is about: question 3 from cover pictures, question 5 from
 half-open (book, laptop) pictures, the rest from the screen named in the row.
 
@@ -74,7 +79,9 @@ half-open (book, laptop) pictures, the rest from the screen named in the row.
    the app has only that much to show, is not a no by itself (the test data should be realistic, trap
    T-20); say that is what it is.
 2. **Shows more.** The inner screen shows something the cover cannot: a second pane, more columns,
-   the list beside the open item. The same amount drawn bigger is a no.
+   the list beside the open item. The same amount drawn bigger is a no, with one exception Apple's own
+   apps make: a grid of pictures, a map, a calendar or a canvas that grows to fill the bigger screen
+   (larger or more tiles, more of the map) is a yes.
 3. **Built for short.** On the cover (678 tall upright, 466 tall sideways) the main information and
    the main action are visible without scrolling, and nothing needed sits under the side rail.
 4. **Bars are the system's.** Navigation, tabs and toolbar actions sit where iOS puts them in this
@@ -84,10 +91,12 @@ half-open (book, laptop) pictures, the rest from the screen named in the row.
    rule is about items the system places in its own bars; it does not apply to tabs an app draws itself.
 5. **Clear of the fold.** Judged from half-open (book, laptop) pictures only; with none in the run,
    n-a. In them, nothing being read or tapped (body text, a button, a field) sits on the crease, and two
-   equal panes meet at the fold. Lying flat, the fold does not matter: a slim list pane beside a wider
+   equal panes meet at the fold. An odd number of grid columns is a minor (Apple says to prefer an even
+   number; its own Photos app uses odd ones). Lying flat, the fold does not matter: a slim list pane beside a wider
    detail pane is the normal flat layout.
 6. **Forms and sheets sized for the screen.** On the inner screen a form is a side panel, a column
-   or a centred card, not a tray as wide as the whole screen. Text lines stay readable
+   or a centred card, not a tray as wide as the whole screen. A panel laid over a map or a canvas may
+   run the width, as in Apple's Maps. Text lines stay readable
    (45 to 90 characters).
 7. **Same app.** Same features, colors, type, wording and state as on the cover and as on an
    ordinary iPhone. Folding mid-task keeps what was typed, selected, open and scrolled.

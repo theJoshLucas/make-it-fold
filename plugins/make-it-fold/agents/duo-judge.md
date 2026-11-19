@@ -23,7 +23,10 @@ plan, not earlier reports, not other screens' pictures.
 3. Answer the eight questions for the cover and for the inner screen (yes, no, minor, n-a or unsure),
    each only from the pictures the scorecard says it is about. A no is a problem a person would notice
    as "not made for this screen"; a minor is polish (the scorecard says which is which). Doubt between no
-   and minor is a no. "unsure" is only for a picture you opened and still cannot read clearly.
+   and minor is a no. "unsure" is for a picture you opened and still cannot read clearly, and for
+   questions 1 and 2 when the screen's main content is an empty state (a "No items" message, a blank
+   list or a blank day): say "take the pictures again with realistic data". One empty section on an
+   otherwise full screen is not that: judge the screen.
    `review.md` gives the biggest empty patch per picture: on the inner screen, over 25% is a no on
    question 1 when the layout leaves it empty, not when it is only the space after the last item the
    app has to show (say which).

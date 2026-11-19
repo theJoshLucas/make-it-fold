@@ -3,11 +3,14 @@
 # Costs Claude usage (about $1.50 on Opus) and about 12 minutes of the Duo simulator. Ask before running.
 #   dev/judge-check [opus|fable]     (default opus; fable only when the maintainer's Fable allowance has room)
 # Known answers:
-#   Apple's own Settings app, first page ............ native  (Apple's own Duo layout: the bar)
+#   Apple's own Settings, Photos and Maps ........... native  (Apple's own Duo layouts: the bar)
 #   practice/native (Gig Log, planted bugs) ......... broken
 #   dev/answers/native/fixed (Gig Log, two panes) ... native
 #   practice/web-phone (a stretched phone layout) ... fits only, on every screen
 # A change to the scorecard, the judge's instructions or its model is not done until this passes.
+# Photos and Maps ask first-run questions once per simulator: the permission ones are answered "don't
+# allow" below; a "What's New" or ads screen must be dismissed by hand once (tap Continue). A picture
+# still showing one fails the check, which is the right result: look at the pictures.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd); PL="$ROOT/plugins/make-it-fold"; P="$PL/scripts"
@@ -26,7 +29,10 @@ shoot() {  # one picture run; tried a second time if it printed no RESULT line (
   done
 }
 RUNS=()
+for svc in "contacts com.apple.Maps" "location com.apple.Maps" "contacts com.apple.mobileslideshow"; do xcrun simctl privacy "$UDID" revoke $svc >/dev/null 2>&1; done
 RUNS+=("native|$(shoot native --bundle com.apple.Preferences --poses $POSES --label settings)|Apple's own Settings app, opened on its first page")
+RUNS+=("native|$(shoot native --bundle com.apple.mobileslideshow --poses $POSES --label photos)|Apple's own Photos app, opened on its library of sample photos")
+RUNS+=("native|$(shoot native --bundle com.apple.Maps --poses $POSES --label maps)|Apple's own Maps app, opened on its home view with location turned off")
 APP=$(build "$PL/practice/native" buggy) && RUNS+=("broken|$(shoot native --bundle dev.makeitfold.practice.native --app "$APP" --scenario "$GIG_SCEN" --poses $POSES --label giglog-buggy)|Gig Log, a list of a band's gigs where each gig opens to its details and notes")
 APP=$(build "$ROOT/dev/answers/native/fixed" fixed) && RUNS+=("native|$(shoot native --bundle dev.makeitfold.practice.native --app "$APP" --scenario "$GIG_SCEN" --poses $POSES --label giglog-fixed)|Gig Log, a list of a band's gigs where each gig opens to its details and notes")
 (cd "$PL/practice/web-phone" && exec python3 -m http.server 8951 --bind 127.0.0.1 >/dev/null 2>&1) & SRV=$!

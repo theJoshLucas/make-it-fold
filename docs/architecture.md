@@ -13,8 +13,9 @@ A Claude Code plugin, published from this repo as its own marketplace.
   - `commands/duo.md` (native by default, `fit` for fit-only, `continue` to resume on Opus), `duo-new.md`,
     `duo-setup.md`, `duo-shot.md`. `duo.md`, `duo-new.md` and the skill set `model: opus` and `effort: high`
     for the turn (Claude Code returns to the person's own model on their next message).
-  - `agents/duo-shooter.md` (`model: sonnet`, Bash only): runs the duo-shot command it is handed, in the
-    foreground, and answers with duo-shot's RESULT line. `agents/duo-judge.md` (`model: fable`,
+  - `agents/duo-shooter.md` (`model: sonnet`, Bash only): runs the duo-shot command it is handed in the
+    background (a foreground command stops at 10 minutes), waits for the one notification that it ended
+    without checking on it, and answers with duo-shot's RESULT line. `agents/duo-judge.md` (`model: fable`,
     `effort: low`; Read, Write, Glob): scores ONE screen of a run folder against `references/design.md` and
     writes `judge/<screen>.md` there; the builder makes one call per screen (one agent holding a whole
     big app's pictures stops seeing the early ones), and `duo-shot verdicts <run>` gathers them into
@@ -92,6 +93,9 @@ There is one "Duo Kit" simulator per Mac, and several Claude sessions may want i
   session waits instead of folding the phone mid-screenshot. It sets `DUO_RUN_HELD=1` so its own `duo-sim`
   calls skip the wait.
 - Command lock (`duo-sim.lock`): held for one `duo-sim` command, so two fold commands never interleave.
+- With `DUO_SIM_UDID` set, both locks are per simulator (`duo-run-<udid>.lock`, `duo-sim-<udid>.lock`), so
+  two simulators could shoot side by side. Not usable yet: duoctl reaches a simulator through `devicectl`,
+  which on Xcode 27.2 only talks to simulators it shows as "connected" (see current-status.md).
 - `duo-sim shutdown` shuts down only the simulator id it recorded booting itself.
 
 ## Trust boundaries

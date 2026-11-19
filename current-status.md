@@ -55,7 +55,29 @@
     Gig Log (broken), the fixed Gig Log (native) and the stretched-phone Woodshed (fits only). Its first run caught
     a real flaw in the plugin's own fixed Gig Log (an empty "No gig selected" pane on the big screen; now it shows
     the first gig) and the fixed Woodshed (its main button is off the bottom of the cover held sideways; still so).
-  - The real app, re-judged per screen: 18 of 18 native, with minors listed; about $4.00 of usage.
+  - The real app, re-judged per screen: 18 of 18 native, with minors listed; about $4.00 of usage. Its pictures
+    had no half-open positions, so its fold question was never answered.
+- The bar is Apple's own apps on the Duo (decided with the maintainer: a bar Apple's own apps miss would send
+  every job through its three rounds without finishing). With pop-ups answered ("don't allow") and welcome
+  screens dismissed on the simulator, the judge at first failed Apple's Photos, Maps and Calendar on rules
+  stricter than Apple's own apps. Now a picture grid, map, calendar or canvas that grows to fill the screen
+  counts as showing more, a panel over a map may run the width, odd grid columns are a minor, and an app shown
+  empty is "unsure, shoot again with data". Result: Settings, Photos and Maps native; Calendar (no events) and
+  Reminders (no reminders) unsure. The empty-area rule did not change.
+- Book and laptop: the job now asks the person at the start, with the minutes they add, and notes the answer;
+  never skipped silently. One simulator shot three positions including book: 54 pictures in 9 min 14 s.
+- The picture-taker runs its command in the background and waits for one notification (a foreground command
+  stops at 10 minutes; a 5-position run of 18 screens takes about 15).
+- Two simulators at once: not working yet. duoctl reaches a simulator through Xcode's device tool (`devicectl`),
+  which lists 15 of this Mac's 109 simulators and only talks to ones it shows as "connected". A copy of the Duo
+  simulator and a freshly made one were not listed at all; Xcode's own spare "iPhone Duo" was listed but stayed
+  "shutdown" while booted ("Get Display Information is not supported"); opening Xcode's Device Hub changed
+  nothing. The only "connected" simulators were the two the Claude desktop app's simulator panel had used, so a
+  panel connection is the untested next step (it needs the person to allow it, and a plugin cannot rely on that
+  panel). Locks are now per simulator (`DUO_SIM_UDID`), ready for when that works.
+- Judge check after the "Apple is the bar" rules: Settings, Photos, the three practice apps right; Maps came back
+  "unsure" on its empty favorites. The empty-app rule now says an empty section on a full screen is not an empty
+  app; Maps then scored native on two further runs. The full check was not rerun after that wording.
 - NOT done / unverified:
   - The judge has not run on Fable (the maintainer's Fable allowance is used up until 2026-11-22). Run
     `dev/judge-check fable` before trusting Fable at low effort as the judge.
