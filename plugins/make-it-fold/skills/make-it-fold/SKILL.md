@@ -130,8 +130,10 @@ the same result. Native: guard iOS 27.1 APIs with `if #available(iOS 27.1, *)`.
 as "before" (book and laptop too if the person said yes); then `duo-shot compare <before folder> <after folder>` for the side-by-side
 page. The duo-judge agent scores the new run, one call per screen, the same way as in step 4. Then the normal-phone check: web at 390 px, a phone sideways (about 850 x 390) and the
 app's desktop width; native on an iPhone 17 Pro simulator on iOS 27, upright and sideways, and on
-the app's minimum iOS. It must match "before". Up to 3
-build, shoot and judge rounds. Still not native after 3: stop and report what is left.
+the app's minimum iOS. It must match "before". Then fix:
+every screen the judge did not score native goes back to step 5 with the judge's "no" answers and its
+three worst things as the list to fix, and the round repeats (build, shoot, judge). Up to 3 rounds. Still
+not native after 3: stop and report what is left.
 
 **7. Report** in this exact shape (plain words; the reader may not be an engineer):
 - **What changed**: one line per screen (how it is laid out now on each screen), then one line
