@@ -11,9 +11,12 @@ Check $ARGUMENTS on the iPhone Duo simulator without changing any code.
 - A native app: build it for the simulator and run
   `${CLAUDE_PLUGIN_ROOT}/scripts/duo-shot native --bundle <id> --app <path to .app>` (add
   `--scenario duo/scenario.json` so every screen is shot, not just the first one).
-- Look at every picture at full size. Read `references/design.md` in the `make-it-fold` skill and
-  fill the `review.md` that duo-shot wrote: the eight scorecard questions per screen, on the cover
-  and on the inner screen.
-- Report in plain words, per screen: **native**, **fits only** (works, but looks like a stretched
-  phone: say what a native layout would be) or **broken** (say what and where). Add what only the
+- Hand that one command to the duo-shooter agent (`make-it-fold:duo-shooter`) to run; its answer is
+  duo-shot's RESULT line. Then run `${CLAUDE_PLUGIN_ROOT}/scripts/duo-models` and hand the duo-judge
+  agent (`make-it-fold:duo-judge`; model "opus" if the judge is unavailable or not chosen) the run
+  folder, the path to `references/design.md` in the `make-it-fold` skill, and one sentence on what the
+  app is for. It writes `judge.md` beside the pictures.
+- Report in plain words, per screen, the judge's verdict word for word: **native**, **fits only**
+  (works, but looks like a stretched phone: say what a native layout would be) or **broken** (say what
+  and where), and which model judged. Add what only the
   real phone can prove, and give the path to `contact.html`.

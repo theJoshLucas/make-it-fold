@@ -130,3 +130,16 @@ Duo simulator facts used below: display ID 1 = cover, 3 = inner; cover screensho
 - **Check:** time one `duo-sim pose` call before a long scenario; the run's minutes are about the number of poses plus a few seconds a screen.
 - **Applies to:** native / iPad / Expo
 
+### T-19 A fixed wait after launch catches a screen still moving
+- **Went wrong:** The picture tool waited a fixed 3 seconds after starting the app on each screen. On one run of 54 pictures, one form was caught halfway up the screen with its preset choice not yet shown, and nothing flagged it: the picture was not blank, so it passed as good.
+- **Spot it:** a sheet or form partly on screen; the same picture differing by most of its pixels between two runs.
+- **Fix:** `duo-shot native` now takes captures until two in a row match (at most about 6 seconds more), relaunches and reshoots a picture that comes out blank or still moving (twice), and lists any that never settled under `moving` in its RESULT line.
+- **Check:** the RESULT line's `blank` and `moving` lists are empty, or each name in them has been looked at.
+- **Applies to:** native / iPad / Expo
+
+### T-20 Pictures that are not what the owner sees
+- **Went wrong:** A design was judged from pictures taken at the default text size, with a nearly empty data set and a first-run question showing. The owner uses a smaller text size, a full day of entries and a set-up account, so on the real phone the same screens were emptier than any picture had shown.
+- **Spot it:** a "Who are you?" or welcome card in the pictures; an empty or one-row list; no text size chosen for the run.
+- **Fix:** before the "before" run, find out (or ask) the owner's text size and any account or app settings, set them with the scenario's `defaults` (native) or the app's own state (web), and seed a realistic amount of made-up data. Then check Default and the largest text size for anything cut off.
+- **Check:** the review.md header lists the settings used, and they match the owner's.
+- **Applies to:** all

@@ -55,13 +55,17 @@ When you type `/duo` inside an app's folder, Claude:
    is never working from an old copy. It also reads its own notebook of lessons from earlier jobs.
 3. 🔍 **Scans the code** for patterns that usually break on a Duo. These are suspects, not convictions.
 4. 📸 **Takes "before" pictures of every screen**, folding the simulator into every position: cover
-   upright, cover sideways (both ways), inner upright, inner sideways, and half-open on request.
-5. 🧐 **Scores each screen for design**, on the cover and on the inner screen, with eight plain
-   questions (does it use the room? does it show more, not bigger? is the form sized for the
-   screen?). Each screen gets a verdict: **native**, **fits only** or **broken**.
+   upright, cover sideways (both ways), inner upright, inner sideways, and half-open on request. It
+   uses your own text size and settings, waits for each screen to stop moving, and retakes any picture
+   that comes out blank.
+5. 🧐 **A separate judge scores each screen for design**, on the cover and on the inner screen, with
+   eight plain questions (does it use the room? does it show more? is the form sized for the screen?)
+   and a measured "biggest empty patch" on every picture. The judge sees only the pictures, never the
+   code or the plan, so the Claude that built the layout never grades its own work. Each screen gets a
+   verdict: **native**, **fits only** or **broken**.
 6. 🔧 **Fixes what broke, then builds the Duo layouts** for every screen that is not native yet.
-7. 📸 **Takes "after" pictures**, puts them side by side with the "before" ones, scores them again,
-   and checks an ordinary iPhone looks exactly as it did.
+7. 📸 **Takes "after" pictures**, puts them side by side with the "before" ones, has the judge score
+   them again, and checks an ordinary iPhone looks exactly as it did.
 8. 📝 **Reports in plain words**: what each screen looks like now, the scorecard, what the simulator
    proved, what only a real phone can prove, and the exact step to publish. Then it **asks before
    publishing**.
@@ -69,6 +73,24 @@ When you type `/duo` inside an app's folder, Claude:
 
 Only want the safety net? Type `/duo fit`: it fixes what breaks, changes no layouts, and still tells
 you how each screen scores.
+
+### 🧠 Which Claude does what
+
+| Part of the job | Model | Why |
+|---|---|---|
+| The job itself: reading, planning, building | The newest **Opus**, high effort | The hard part |
+| Taking the pictures (the `duo-shooter` helper) | The newest **Sonnet** | It only runs one command. In a test of 2 runs each, Haiku came out cheaper per word but wandered off the instructions both times; Sonnet followed them both times |
+| Scoring the pictures (the `duo-judge` helper) | The newest **Fable**, low effort, or **Opus** | A different Claude from the builder, shown only the pictures |
+
+At the start of each job the plugin reads Anthropic's live list of models and checks which model
+each name ("opus", "sonnet", "fable") points to in your Claude Code. If your Claude Code is behind,
+it tells you and **asks before updating**; it never updates anything by itself.
+
+Before your first job it asks once whether the judge may run on Fable. On some plans Fable bills
+**usage credits**, which is money on top of your plan; say no and the judge runs on Opus. When Fable
+isn't available (a usage limit, or no Fable on your plan), the judge runs on Opus for that job and the
+report says so. If you answer a question in the middle of a job, Claude Code goes back to your own
+model; type `/duo continue` to put the job back on Opus.
 
 ## 🚀 Install
 
@@ -242,6 +264,8 @@ numbers. If anything is different, tap **Share results** and
   tool backs that up: it refuses any web address that isn't on your own computer. (It can be told to
   look at one public page, and then it leaves your logins behind.)
 - **Asks before publishing.** Every time.
+- **Never updates anything on your Mac by itself.** Not Claude Code, not Xcode, not macOS: it says
+  what is out of date and asks.
 - **Your code is only changed by `/duo`** (and `/duo-new`, which writes a new app). `/duo-shot` and
   `/duo-setup` don't touch it. Commit your work first, so every change `/duo` makes shows up as a
   clean diff you can undo.
@@ -293,7 +317,8 @@ Mac:
 Start with the `make-it-fold` skill (`plugins/make-it-fold/skills/make-it-fold/SKILL.md`). Follow
 its job in order, read only the recipe and trap files `duo-scan` names (plus `references/design.md`
 and `traps/design.md`, which every job reads), and never load every file. "Nothing is cut off" is
-not done: every screen needs a design verdict from a picture you looked at.
+not done: every screen needs a design verdict from the duo-judge agent, which sees only the pictures.
+You never score layouts you built.
 Scripts are in `plugins/make-it-fold/scripts/`; each one explains itself with `--help`.
 
 Changing the plugin itself? Read `AGENTS.md` first, and run `dev/check` before you push.
@@ -303,12 +328,14 @@ Changing the plugin itself? Read `AGENTS.md` first, and run `dev/check` before y
 The plugin learns in three ways:
 
 - 🍎 **From Apple, every run.** It downloads Apple's current Duo pages at the start of each job and
-  notices when Apple has changed one or added a new one.
+  notices when Apple has changed one or added a new one. Every rule the plugin credits to Apple
+  carries Apple's exact words, and each run checks those words are still on Apple's pages, so a rule
+  the plugin made up can't pass itself off as Apple's.
 - 📓 **From your own jobs.** When a job hits something new, Claude writes the lesson into a notebook
   on your Mac (`~/.config/make-it-fold/notebook.md`) without being asked, and reads that notebook
   at the start of the next job. It survives plugin updates.
-- 🪤 **From everyone.** The plugin ships with 75 hard-won lessons ("traps"): what went wrong, how to
-  spot it, the fix, and a check. Fourteen of them are about design: the ways an app can fit and
+- 🪤 **From everyone.** The plugin ships with 79 hard-won lessons ("traps"): what went wrong, how to
+  spot it, the fix, and a check. Fifteen of them are about design: the ways an app can fit and
   still look wrong. After saving a lesson, Claude offers to send it here as
   [an issue](https://github.com/theJoshLucas/make-it-fold/issues) (it asks first), so the next
   version can teach it to everyone.

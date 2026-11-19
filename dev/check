@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 claude plugin validate . >/dev/null
 claude plugin validate plugins/make-it-fold >/dev/null
 S=plugins/make-it-fold/scripts
-for f in duo-sim duo-scan duo-shot duo-listen duo-setup duo-docs duo-notes; do python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$S/$f"; done
+for f in duo-sim duo-scan duo-shot duo-listen duo-setup duo-docs duo-notes duo-models; do python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$S/$f"; done
 node -e "new Function(require('fs').readFileSync('$S/duo-reporter.js','utf8'))"
 # Every fixed reference copy must pass all of its exam's regex graders.
 for c in web web-phone native ipad wrapper home-screen expo; do
@@ -22,6 +22,11 @@ base = json.load(open("plugins/make-it-fold/tools/apple-docs.baseline.json"))["p
 bad = [r[0] for r in rows if len(r) != 4 or not r[2].startswith("https://developer.apple.com/") or r[0] not in base]
 sys.exit(f"apple-docs.tsv rows not Apple pages or missing from the baseline: {bad}" if bad else 0)
 PY
+# Every quote the design guide credits to Apple is on Apple's saved pages (skipped when this Mac has none).
+plugins/make-it-fold/scripts/duo-docs quotes | grep -q "No saved Apple pages" && echo "note: no saved Apple pages, quote check skipped" || plugins/make-it-fold/scripts/duo-docs quotes >/dev/null || { plugins/make-it-fold/scripts/duo-docs quotes; exit 1; }
+# Both agents exist, and each names the model it is meant to run on.
+grep -q "^model: sonnet$" plugins/make-it-fold/agents/duo-shooter.md || { echo "duo-shooter must run on sonnet"; exit 1; }
+grep -q "^model: fable$" plugins/make-it-fold/agents/duo-judge.md && grep -q "^effort: low$" plugins/make-it-fold/agents/duo-judge.md || { echo "duo-judge must run on fable at low effort"; exit 1; }
 # Trap IDs are unique.
 dup=$(grep -h -o "^### [A-Z]-[0-9]*" plugins/make-it-fold/skills/make-it-fold/traps/*.md | sort | uniq -d)
 [ -z "$dup" ] || { echo "duplicate trap ids: $dup"; exit 1; }

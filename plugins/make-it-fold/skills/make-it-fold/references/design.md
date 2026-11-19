@@ -3,9 +3,11 @@
 "Nothing is cut off" is the floor. The bar is: **someone who opens this app on a Duo believes it was
 designed for a Duo.** A phone layout stretched across the inner screen fits and still fails.
 
-This file is the plugin's own summary, written 2026-11-18 from Apple's live pages. Apple wins:
-`duo-docs` tells you when Apple's design page has changed since then, and then you read Apple's page
-(`duo-docs path design`) and follow it over this file.
+This file is the plugin's own summary of Apple's live pages. Apple wins: `duo-docs` tells you when
+Apple's design page has changed, and then you read Apple's page (`duo-docs path design`) and follow it
+over this file. Every rule below that is Apple's carries Apple's own words in quotes, and `duo-docs`
+checks each quote is still on Apple's pages. A rule marked **plugin rule** is this plugin's own,
+learned on real jobs: never present it as Apple's.
 
 ## The two screens want different things
 | | Cover (folded) | Inner (unfolded) |
@@ -18,34 +20,50 @@ This file is the plugin's own summary, written 2026-11-18 from Apple's live page
 Unfolding a cover held upright gives the inner screen **sideways** (951 x 669). That is the first
 thing every Duo owner sees. Design it first, not last.
 
-## Apple's rules, in short (read the live page for the detail)
+## The rules, in short (read Apple's live page for the detail)
 1. **One app, two sizes.** A compact layout for the cover and a regular layout for the inner screen
-   cover every pose. Do not draw a layout per pose.
+   cover every pose. Do not draw a layout per pose. Apple: "A compact width layout for the outer
+   display and a regular width layout for the inner display give you the fundamentals for every pose."
 2. **Expand, do not reinvent.** The inner layout is the cover layout plus one more level of the
    hierarchy (the list AND the open item). Same features, same state, things stay roughly where
-   they were. Small moves when folding, never a reshuffle.
+   they were. Apple: "Don’t reinvent your app when it resizes; allow the existing layout to expand
+   based on the available space instead." and "show an additional level of hierarchy on the larger
+   inner display if it makes sense for your content". Small moves when folding, never a reshuffle.
+   Apple: "favor small adjustments over rearrangement".
 3. **Let the system place the bars.** Tab bars, toolbars and navigation controls move to a side rail
-   on the cover and on the inner screen sideways. Use the system's bars and do not override where
-   they sit. Every bar item gets an icon AND a title. Text-only and custom-view items do not appear
-   in the rail. Most-used items get a visibility priority so they overflow last.
-4. **Controls live beside what they change.** A pane's own controls sit with that pane, not in the
-   rail on the far edge.
+   on the cover and on the inner screen sideways. Apple: "In general, don’t override the default bar
+   placement." Every bar item gets an icon AND a title. Apple: "If your item has a title and doesn’t
+   have an icon, the system doesn’t present it vertically." Most-used items get a visibility priority
+   so they overflow last. Apple: "Assign each item a visibility priority to change that order".
+4. **Controls live beside what they change** (plugin rule). A pane's own controls sit with that pane,
+   not in the rail on the far edge.
 5. **Respect the fold and the cameras.** Half-open, the middle of the inner screen is a dead strip.
-   Two panes meet at the fold. Grids use an even number of columns. Custom drawing asks for the
+   Two panes meet at the fold. Grids use an even number of columns. Apple: "In a grid-style layout,
+   prefer an even number of columns so content divides cleanly." Custom drawing asks for the
    reserved regions.
 6. **Full width only for things that are not lists.** A calculator, a player, a map or a game can
    use the whole screen and re-flow its grid (fewer rows, more columns on the short cover).
-   Scrolling content stays inset.
-7. **Same sizes.** Text and controls keep their normal size on the inner screen. The extra room
-   shows more, it does not blow things up.
+   Scrolling content stays inset. Apple: "letting a background image or header span the full width
+   while scrollable content stays inset".
+7. **Sizes may change; the room must not sit empty** (plugin rule, from a real job). For apps, Apple
+   says only that "content may move or change size as the interface adapts to the available area".
+   Apple's "keep text and control sizes as consistent as possible" is in its advice for games, in the
+   same paragraph as "be sure to fill the screen"; it is not a rule for apps. So: show more first. If
+   the inner screen still leaves large areas empty (an app with little to show, at the owner's own
+   text size), draw it a step larger, about 1.1 to 1.25 times the cover size, the way the app looks on
+   the biggest ordinary iPhone. Never scale with the window width without a cap (trap G-05).
 
-## The scorecard (fill it for every screen, on BOTH screens)
-Score from screenshots, not from the code. One line per screen, each question yes or no.
+## The scorecard (for every screen, on BOTH screens)
+The **duo-judge** agent fills it in from the screenshots, never the agent that built the layouts
+(SKILL.md step 4). One line per screen, each question yes or no. When in doubt, the answer is no.
 
 1. **Uses the room.** No phone column stretched edge to edge. No button, field, card or bar wider
-   than a phone would make it (about 560 points) unless it is a real full-width surface.
-2. **Shows more, not bigger.** The inner screen shows something the cover cannot: a second pane,
-   more columns, the list beside the open item. Type and controls are the same size as on the cover.
+   than a phone would make it (about 560 points) unless it is a real full-width surface. No large
+   empty area: `duo-shot` measures the biggest empty patch on every picture, and on the inner screen
+   a patch over 25% of the screen is a no unless it is the end of a scrolling list. A column that
+   stops halfway down, a list in a third of the width, or a block alone in open space is a no.
+2. **Shows more.** The inner screen shows something the cover cannot: a second pane, more columns,
+   the list beside the open item. The same amount drawn bigger is a no.
 3. **Built for short.** On the cover (678 tall upright, 466 tall sideways) the main information and
    the main action are visible without scrolling, and nothing needed sits under the side rail.
 4. **Bars are the system's.** Navigation, tabs and toolbar actions sit where iOS puts them in this
@@ -61,8 +79,10 @@ Score from screenshots, not from the code. One line per screen, each question ye
    across a wide row), no lonely block floating in empty space, touch targets at least 44 points.
 
 Verdict per screen: **native** (all yes), **fits only** (nothing broken, but a no on 1, 2, 5, 6 or 8),
-**broken** (a fit failure). A layout you built but could not look at (no simulator, no browser) is
-**built, not seen**, never native. The job is done when every screen is native on both screens, or the
+**broken** (a fit failure). A layout nobody could look at (no simulator, no browser) is **built, not
+seen**, never native. Pictures taken at the default text size, with an empty data set or without the
+owner's usual settings, when the owner uses something else, prove nothing about what the owner will
+see: shoot with the owner's settings (`references/scenario.md`, `defaults`). The job is done when every screen is native on both screens, or the
 ones that are not are listed under "Still open" with the reason.
 
 ## What each kind of screen becomes

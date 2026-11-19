@@ -132,7 +132,7 @@ SAME views (`design.md` has the pattern for each kind of screen).
 ## checks
 `duo-shot native --bundle <id> --app <path to .app> --scenario duo/scenario.json --label before|after`.
 Without a scenario it photographs only the screen the app opens on: list every screen in
-`duo/scenario.json` (`scenario.md`, "native screens") so each one is shot in every pose. Then look at every
-screenshot at full size and fill `review.md`. XCUITest screenshots only capture the cover display, and XCUITest cannot fold: use
+`duo/scenario.json` (`scenario.md`, "native screens") so each one is shot in every pose. The duo-shooter agent runs it
+(SKILL.md step 3) and the duo-judge agent fills `review.md` from the pictures (step 4). XCUITest screenshots only capture the cover display, and XCUITest cannot fold: use
 `duo-sim pose <name>` from the host between test steps (`traps/testing.md` T-02, T-11), and find
 elements by accessibility identifier, never fixed points.

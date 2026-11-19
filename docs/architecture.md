@@ -10,7 +10,15 @@ A Claude Code plugin, published from this repo as its own marketplace.
     `references/*.md` are read on demand only; `references/design.md` (the scorecard and the layout
     patterns) and `traps/design.md` are read by every job except a fit-only one. `traps/*.md` hold the
     trap notebook (no private sources).
-  - `commands/duo.md` (native by default, `fit` for fit-only), `duo-new.md`, `duo-setup.md`, `duo-shot.md`.
+  - `commands/duo.md` (native by default, `fit` for fit-only, `continue` to resume on Opus), `duo-new.md`,
+    `duo-setup.md`, `duo-shot.md`. `duo.md`, `duo-new.md` and the skill set `model: opus` and `effort: high`
+    for the turn (Claude Code returns to the person's own model on their next message).
+  - `agents/duo-shooter.md` (`model: sonnet`, Bash only): runs the duo-shot command it is handed, in the
+    foreground, and answers with duo-shot's RESULT line. `agents/duo-judge.md` (`model: fable`,
+    `effort: low`; Read, Write, Glob): scores a run folder's pictures against `references/design.md` and
+    writes `judge.md` there. The builder hands it only the run folder, the scorecard path, the owner's
+    settings and one sentence about the app; it calls it with model "opus" when `duo-models` says Fable
+    is unavailable or was not chosen. Plugin agents are invoked as `make-it-fold:<name>`.
   - `scripts/`: `duo-setup` (checks the Mac, installs the pinned duoctl, creates "Duo Kit"),
     `duo-sim` (poses via duoctl, verified from duoctl's readback; refuses a duoctl copy that is not
     exactly the pinned commit; two locks, see below),
@@ -20,7 +28,8 @@ A Claude Code plugin, published from this repo as its own marketplace.
     taps) and a screenshot of each in every pose, or with `--order pose` one fold per pose and every screen
     started in it; `compare` puts two runs side by side),
     `duo-listen` (localhost-only server/proxy), `duo-reporter.js`,
-    `duo-docs` (downloads Apple's Duo pages on every run; see below), `duo-notes` (the local lessons notebook).
+    `duo-docs` (downloads Apple's Duo pages on every run; see below), `duo-notes` (the local lessons notebook),
+    `duo-models` (which model each part of the job runs on; see below).
   - `tools/duoctl.pin`: the reviewed duoctl commit. `/duo-setup` clones exactly that commit into
     `~/.cache/make-it-fold/duoctl/<sha>`.
   - `probe/index.html`: the Duo Screen Check page. Recognises the five positions from the page's own size,
@@ -42,8 +51,16 @@ them. It also prints **design notes** from `duo-reporter.js` (one column on a wi
 than 560 px, lines past about 95 characters, under 60% of the width used, touch targets under 44 px, and
 type that is bigger on the inner screen than on the cover). Notes never change the exit code: they are
 prompts. Design is judged by whoever runs the job, from the pictures, in the `review.md` scorecard that
-every run writes (one block per screen, a row for the cover and one for the inner screen). Native runs have
-no measured notes at all, only pictures.
+every run writes (one block per screen, a row for the cover and one for the inner screen). The duo-judge agent
+fills it in, never the agent that built the layouts. Native runs have no measured notes from inside the app.
+
+Every picture, web and native, is also measured from a 160-pixel copy made by `sips` (no extra libraries):
+the **biggest empty patch** (the largest rectangle of the most common color, as a share of the picture; over 25%
+on the inner screen is flagged in `review.md`) and **blank** (one color on 99% of it, an issue). Native runs take
+captures until two in a row differ on under 3% of their pixels (at most 9 captures, 0.6 s apart), so a sheet still
+sliding in is not the picture; with `--order pose` a blank or still-moving picture is retaken from a fresh launch,
+twice. A scenario's `defaults` are written with `simctl spawn ... defaults write` before the first launch. The last
+line of every run is `RESULT {json}` (run folder, picture count, blank, moving, reshot, issues, settings).
 
 ## Fresh knowledge on every run
 - `duo-docs` reads `tools/apple-docs.tsv` (name, core or topic, address, purpose), fetches each page from
@@ -57,6 +74,14 @@ no measured notes at all, only pictures.
   The notebook is outside the plugin folder, so it survives updates.
 - `duo-setup` compares this copy's version with the one on `main` (4 second limit, silent when offline)
   and prints the update line when a newer one is out.
+- `duo-docs` (and `duo-docs quotes`, which `dev/check` runs) checks that every quoted phrase in
+  `references/design.md` that follows the word "Apple" appears on a saved Apple page (curly quotes and line
+  breaks evened out). A missing one is reported as the plugin's own rule.
+- `duo-models` reads `platform.claude.com/docs/en/about-claude/models/overview.md` (the newest id per family),
+  then asks this Claude Code for one tiny answer on "opus", "sonnet" and, when the judge is Fable, "fable" at low
+  effort (`claude -p --output-format json`, reading `modelUsage`), at most once a day per Claude Code version
+  (`~/.cache/make-it-fold/models.json`; a failed check is not cached). The judge choice lives in
+  `~/.config/make-it-fold/models.json`. It never updates anything: "behind" tells the builder to ask.
 
 ## Two locks, one simulator
 There is one "Duo Kit" simulator per Mac, and several Claude sessions may want it.

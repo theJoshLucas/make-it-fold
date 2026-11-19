@@ -99,3 +99,10 @@ Load for every job. Ordered by how often each one bites a Duo job, most first.
 - **Fix:** approve only additive changes; a DROP for something the code still uses means stop. Start the dev server and confirm its tables exist before publishing. Tables created at run time are also created at startup.
 - **Check:** read every line of the migration preview before approving; it has zero DROP lines.
 - **Applies to:** web / home-screen / wrapper
+
+### D-15 The builder grading its own layouts
+- **Went wrong:** The agent that built a Duo layout also filled in its design scorecard, and passed it. One report scored a screen "native" in the same message that listed, under "still open", that the screen left half of itself empty. The rule that should have failed it was already on the scorecard. The owner found the problem on a real phone.
+- **Spot it:** a scorecard written in the same conversation that wrote the layout code; a verdict that disagrees with the report's own "still open" list.
+- **Fix:** the duo-judge agent gives every design verdict. It sees only the pictures, the measurements and the scorecard, never the code or the plan. The report copies its verdicts as they are; the builder may add a line saying it disagrees, but never changes a verdict.
+- **Check:** every verdict in the report matches `judge.md` beside the pictures, word for word.
+- **Applies to:** all

@@ -78,12 +78,14 @@ The phone layout stays exactly as it is below about 600 px. Add wide rules for t
   No control stretched across 951 px.
 - **Dialogs and sheets:** a bottom sheet when narrow; a side panel or a centred card
   (`max-width: 560px`) when wide; menus anchored to their button.
-- **Same sizes:** no `vw`-based font sizes, no zoom or scale to fill the screen. Safari itself
-  enlarges text in wide blocks on the inner screen sideways unless the page says
+- **Sizes:** show more first. Where the inner screen would still sit largely empty, a step larger
+  is fine (about 1.1 to 1.25 times the cover size, `references/design.md` rule 7), set in the wide
+  rules with a cap; never a `vw`-based font size without one. Safari itself enlarges text in wide
+  blocks on the inner screen sideways unless the page says
   `-webkit-text-size-adjust: 100%; text-size-adjust: 100%` (trap G-13): set it in the wide rules.
 - **Check:** `duo-shot web` prints design notes for each pose (one column on a wide screen,
   stretched controls, long lines, unused width, small touch targets). They are prompts for the
-  scorecard, not failures: look at the picture and decide.
+  duo-judge agent's scorecard, not failures.
 - **Normal-phone check** now has three sizes: 390 px upright, a phone sideways (about 850 x 390)
   and the app's desktop width. All three must match "before".
 

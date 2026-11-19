@@ -17,6 +17,10 @@ NATIVE (an iPhone/iPad app):
   to open, or taps) and shoots each one in every pose; without one it only sees the screen the
   app opens on. --order pose folds once and then photographs every screen in that pose (much
   faster for many screens, since a fold can take a minute; it does not show a fold in mid-task).
+  Before each picture it waits until two captures in a row match (a sheet still sliding in is not
+  photographed), and a picture that comes out blank or never stops moving is retaken (twice).
+  A scenario's "defaults" ({"key": value}) are written into the app's settings before the first
+  launch, so the pictures show the owner's own text size and set-up, not a first run.
   Native layout is judged from the screenshots plus the app's own UI tests;
   duo-shot only checks the app is still running.
 
@@ -36,8 +40,10 @@ sandbox recipe): duo-shot refuses a URL that is not on this computer unless --al
 (for a read-only page; cookies and logins are never passed along to it).
 
 Output: <out>/<timestamp>-<label>/ with summary.json, report.md, contact.html, review.md (the
-design scorecard to fill in, one block per screen), full-size screenshots (App Store sizes) and
-small copies in thumbs/ for a quick look.
+design scorecard for the duo-judge agent, one block per screen, with the biggest empty patch measured
+on every picture), full-size screenshots (App Store sizes) and small copies in thumbs/ for a quick look.
+The last line printed is `RESULT {json}`: the run folder, how many pictures, and which ones came out
+blank, never stopped moving, or were retaken.
 Web runs also print DESIGN NOTES per pose (one column on a wide screen, stretched controls, long
 lines, unused width, small touch targets, text that grows on the inner screen). Notes are prompts
 for the design review, not failures: they never change the exit code.
@@ -52,8 +58,10 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.parse
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
@@ -120,6 +128,88 @@ def thumb(src, dst, size=900):
     subprocess.run(["sips", "-Z", str(size), str(src), "--out", str(dst)], capture_output=True)
 
 
+# Pictures are measured from a small copy made by macOS's own sips, so no extra libraries are needed.
+SETTLED = 0.03     # two captures differing on under 3% of their pixels count as the same picture
+BLANK = 0.99       # one color on 99% of the picture: nothing was drawn
+EMPTY_FLAG = 25    # an inner-screen picture whose biggest empty patch is over 25% gets flagged
+
+
+def small_rgb(png, maxdim=160):
+    """The picture shrunk to at most maxdim pixels a side: (width, height, rows of (r, g, b)), or None."""
+    with tempfile.TemporaryDirectory() as d:
+        bmp = Path(d) / "s.bmp"
+        r = subprocess.run(["sips", "-s", "format", "bmp", "-Z", str(maxdim), str(png), "--out", str(bmp)], capture_output=True)
+        if r.returncode or not bmp.exists():
+            return None
+        b = bmp.read_bytes()
+    g = lambda o, n, signed=False: int.from_bytes(b[o:o + n], "little", signed=signed)
+    if len(b) < 54 or b[:2] != b"BM":
+        return None
+    off, hdr, w, h, bpp, comp = g(10, 4), g(14, 4), g(18, 4, True), g(22, 4, True), g(28, 2), g(30, 4)
+    if bpp not in (24, 32) or w <= 0 or h == 0:
+        return None
+    masks = (0xFF0000, 0xFF00, 0xFF)
+    if comp == 3 and hdr >= 52:
+        masks = (g(54, 4), g(58, 4), g(62, 4))
+    shifts = [(m & -m).bit_length() - 1 for m in masks]
+    step, stride = bpp // 8, ((bpp * w + 31) // 32) * 4
+    rows = []
+    for y in range(abs(h)):
+        base = off + y * stride
+        row = []
+        for x in range(w):
+            v = int.from_bytes(b[base + x * step:base + x * step + step], "little")
+            row.append(tuple((v & m) >> sh for m, sh in zip(masks, shifts)))
+        rows.append(row)
+    if h > 0:
+        rows.reverse()  # the file was stored bottom row first
+    return w, abs(h), rows
+
+
+def background(img):
+    """The most common color and the share of the picture it covers."""
+    w, h, rows = img
+    col, n = Counter(px for row in rows for px in row).most_common(1)[0]
+    return col, n / (w * h)
+
+
+def is_blank(img):
+    return img is not None and background(img)[1] >= BLANK
+
+
+def biggest_empty(img, tol=10):
+    """Share of the picture (0 to 1) inside the largest rectangle that is only background color."""
+    w, h, rows = img
+    bg, _ = background(img)
+    heights, best = [0] * w, 0
+    for row in rows:
+        for x in range(w):
+            px = row[x]
+            heights[x] = heights[x] + 1 if max(abs(px[0] - bg[0]), abs(px[1] - bg[1]), abs(px[2] - bg[2])) <= tol else 0
+        stack = []
+        for x in range(w + 1):
+            hx = heights[x] if x < w else 0
+            start = x
+            while stack and stack[-1][1] >= hx:
+                start, top = stack.pop()
+                best = max(best, top * (x - start))
+            stack.append((start, hx))
+    return best / (w * h)
+
+
+def changed(a, b, tol=24):
+    """Share of pixels that clearly differ between two small pictures (1.0 if they cannot be compared)."""
+    if not a or not b or a[:2] != b[:2]:
+        return 1.0
+    n = sum(1 for ra, rb in zip(a[2], b[2]) for p, q in zip(ra, rb)
+            if max(abs(p[0] - q[0]), abs(p[1] - q[1]), abs(p[2] - q[2])) > tol)
+    return n / (a[0] * a[1])
+
+
+def is_inner(pose):
+    return pose.startswith("inner") or pose in ("book", "laptop")
+
+
 def contact_sheet(outdir, rows, title):
     # Issue text and labels come from the page being checked, so everything is escaped.
     esc = lambda v: html.escape(str(v))
@@ -148,7 +238,7 @@ figure{{margin:0;background:var(--card);border-radius:10px;padding:8px}} img{{wi
     (outdir / "contact.html").write_text(page)
 
 
-QUESTIONS = ["1 uses the room", "2 shows more, not bigger", "3 built for short", "4 bars are the system's",
+QUESTIONS = ["1 uses the room", "2 shows more", "3 built for short", "4 bars are the system's",
              "5 clear of the fold", "6 forms sized for the screen", "7 same app", "8 looks deliberate"]
 
 
@@ -156,23 +246,32 @@ def screen_of(row):
     return row.get("screen") or row.get("path") or "app"
 
 
-def review_sheet(outdir, rows, title):
-    """The design scorecard to fill in: one block per screen, a line for the cover and one for the
-    inner screen. duo-shot cannot judge design; whoever runs it must look at the pictures."""
+def review_sheet(outdir, rows, title, settings=None):
+    """The design scorecard: one block per screen, a line for the cover and one for the inner screen.
+    duo-shot cannot judge design. The duo-judge agent fills this in from the pictures; the agent that
+    built the layouts never does (trap D-15)."""
     screens = {}
     for r in rows:
         screens.setdefault(screen_of(r), []).append(r)
     head = "| Screen size | " + " | ".join(QUESTIONS) + " | Verdict |"
     rule = "|" + "---|" * (len(QUESTIONS) + 2)
     lines = [f"# Design review: {title}", "",
-             "Fill in every `?` after looking at each picture at FULL size (not the thumbnails).",
-             "The eight questions and the patterns are in the make-it-fold skill, `references/design.md`.",
-             "Answer yes / no / n-a. Verdict: **native**, **fits only** or **broken**.", ""]
+             "For the duo-judge agent, never the agent that built the layouts (trap D-15).",
+             "Look at each picture at FULL size (not the thumbnails), answer every `?` and write the",
+             "verdicts to `judge.md` beside this file. The eight questions are in the make-it-fold skill,",
+             "`references/design.md`. Answer yes / no / n-a. Verdict: **native**, **fits only** or **broken**.",
+             f"Biggest empty patch: the largest area of plain background, as a share of the picture. On the",
+             f"inner screen over {EMPTY_FLAG}% means question 1 is a no, unless that area is the end of a scrolling list.",
+             "Settings the app had for every picture: " + (", ".join(f"{k}={v}" for k, v in settings.items()) if settings
+                                                         else "none set (the app's defaults; say so if the owner uses others)"),
+             ""]
     for name, rs in screens.items():
         lines += [f"## {name}", ""]
         for r in rs:
             if r.get("shot"):
-                lines.append(f"- {r['pose']}: `{r['shot']}`" + (f" ({len(r['issues'])} fit issue{'s' if len(r['issues']) != 1 else ''})" if r.get("issues") else ""))
+                empty = r.get("empty")
+                ruler = "" if empty is None else f", biggest empty patch {empty}%" + (" (over the line)" if is_inner(r["pose"]) and empty > EMPTY_FLAG else "")
+                lines.append(f"- {r['pose']}: `{r['shot']}`{ruler}" + (f" ({len(r['issues'])} fit issue{'s' if len(r['issues']) != 1 else ''})" if r.get("issues") else ""))
         notes = sorted({f"{d['kind']}: {d['detail']}" for r in rs for d in (r.get("design") or [])})
         if notes:
             lines += ["", "Design notes measured from the page (prompts, not verdicts):"] + [f"- {n}" for n in notes]
@@ -412,8 +511,8 @@ class WebRun:
         return self.finish(f"Duo check: {self.base} ({self.a.label})")
 
     def text_growth(self):
-        """Text that is bigger on the inner screen than on the cover means the app is scaling up
-        to fill the room, instead of showing more. Compare each page's font sizes across poses."""
+        """Text far bigger on the inner screen than on the cover: Safari enlarging wide text on its
+        own (trap G-13), or an uncapped scale (G-05). A step of up to 1.25 times is allowed."""
         by = {}
         for r in self.rows:
             if r.get("fonts") and r.get("pose") in DEFAULT_POSES:
@@ -427,13 +526,26 @@ class WebRun:
                 if not r:
                     continue
                 grew = [f"{k} {cover['fonts'][k]:g}px to {r['fonts'][k]:g}px" for k in ("body", "heading", "button", "text", "paragraph")
-                        if cover["fonts"].get(k) and r["fonts"].get(k) and r["fonts"][k] > cover["fonts"][k] * 1.12]
+                        if cover["fonts"].get(k) and r["fonts"].get(k) and r["fonts"][k] > cover["fonts"][k] * 1.25]
                 if grew:
                     r["design"].append({"kind": "text-grows-on-inner-screen",
-                                        "detail": "type is bigger here than on the cover (" + ", ".join(grew) + "): use the room to show more, not to enlarge"})
+                                        "detail": "type is over 1.25 times its cover size here (" + ", ".join(grew) + "): if the app did not ask for it, Safari did (G-13); if it did, cap it and show more (G-05)"})
+
+    def measure(self):
+        """The biggest empty patch on every picture, and any picture that came out blank."""
+        for r in self.rows:
+            if not r.get("shot"):
+                continue
+            img = small_rgb(self.out / r["shot"])
+            if img is None:
+                continue
+            r["empty"] = round(100 * biggest_empty(img))
+            if is_blank(img) and not any(i["kind"] == "picture-blank" for i in r["issues"]):
+                r["issues"].append({"kind": "picture-blank", "detail": "the picture is one flat color: nothing was drawn (take it again)"})
 
     def finish(self, title):
         self.text_growth()
+        self.measure()
         total = sum(len(r["issues"]) for r in self.rows) + len(self.findings)
         notes = sum(len(r.get("design") or []) for r in self.rows)
         summary = {"title": title, "when": datetime.now().isoformat(timespec="seconds"),
@@ -441,7 +553,7 @@ class WebRun:
                    "tier": f"Duo simulator ({sim('runtime', check=False) or 'iOS version unknown'}{self.kind})"}
         (self.out / "summary.json").write_text(json.dumps(summary, indent=2))
         contact_sheet(self.out, self.rows, title)
-        review_sheet(self.out, self.rows, title)
+        review_sheet(self.out, self.rows, title, getattr(self, "defaults", None))
         lines = [f"# {title}", "", f"Tier: Duo simulator. Issues found: {total}.", ""]
         for r in self.rows:
             lines.append(f"- **{r['label']}** ({r['size']}): " + ("ok" if not r["issues"] else
@@ -457,6 +569,12 @@ class WebRun:
                   f"Design scorecard to fill in (\"no issues\" is not \"looks native\"): {self.out / 'review.md'}"]
         (self.out / "report.md").write_text("\n".join(lines) + "\n")
         print("\n".join(lines))
+        shots = [r for r in self.rows if r.get("shot")]
+        result = {"run": str(self.out), "pictures": len(shots), "expected": len(self.rows),
+                  "blank": [Path(r["shot"]).stem for r in shots if any(i["kind"] == "picture-blank" for i in r["issues"])],
+                  "moving": sorted(set(getattr(self, "moving", []))), "reshot": sorted(set(getattr(self, "reshot", []))),
+                  "issues": total, "settings": getattr(self, "defaults", None) or {}}
+        print("RESULT " + json.dumps(result))
         return 0 if total == 0 else 1
 
 
@@ -470,6 +588,10 @@ class NativeRun(WebRun):
         names = [sc.get("name") for sc in self.screens]
         if len(self.screens) > 1 and (None in names or len(set(names)) != len(names)):
             raise ShotError("every screen in the scenario needs its own \"name\"")
+        self.defaults = self.scenario.get("defaults") or {}
+        if not isinstance(self.defaults, dict) or any(not isinstance(v, (bool, int, float, str)) for v in self.defaults.values()):
+            raise ShotError('"defaults" must be {"key": value} with plain values (text, numbers, true/false)')
+        self.reshot, self.moving, self.last_state = [], [], "ok"
         self.env = {}
         for pair in a.env or []:
             if "=" not in pair:
@@ -480,6 +602,39 @@ class NativeRun(WebRun):
         self.out = Path(a.out) / f"{stamp}-{a.label}"
         (self.out / "shots").mkdir(parents=True, exist_ok=True)
         self.rows, self.findings = [], []
+
+    def apply_defaults(self, udid):
+        """Write the scenario's "defaults" into the app's settings, with the app closed (trap T-20)."""
+        if not self.defaults:
+            return
+        subprocess.run(["xcrun", "simctl", "terminate", udid, self.a.bundle], capture_output=True)
+        for k, v in self.defaults.items():
+            kind = "-bool" if isinstance(v, bool) else "-int" if isinstance(v, int) else "-float" if isinstance(v, float) else "-string"
+            val = ("true" if v else "false") if isinstance(v, bool) else str(v)
+            r = subprocess.run(["xcrun", "simctl", "spawn", udid, "defaults", "write", self.a.bundle, str(k), kind, val],
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                raise ShotError(f"could not set {k} for {self.a.bundle}: {r.stderr.strip()}")
+
+    def shoot(self, label):
+        """Take captures until two in a row match (at most about 6 seconds more), so a sheet still sliding
+        in is never the picture (trap T-19). Leaves "ok", "blank" or "moving" in self.last_state."""
+        name = label.replace("/", "_").replace(" ", "_")
+        full = self.out / "shots" / f"{name}.png"
+        prev, cur, state = None, None, "moving"
+        for _ in range(9):
+            sim("shot", str(full))
+            cur = small_rgb(full)
+            if prev is not None and cur is not None and changed(prev, cur) < SETTLED:
+                state = "ok"
+                break
+            prev = cur
+            time.sleep(0.6)
+        if is_blank(cur):
+            state = "blank"
+        self.last_state = state
+        thumb(full, self.out / "thumbs" / f"{name}.png")
+        return f"shots/{name}.png", f"thumbs/{name}.png"
 
     def running(self, udid):
         r = subprocess.run(["xcrun", "simctl", "spawn", udid, "launchctl", "list"], capture_output=True, text=True)
@@ -522,8 +677,16 @@ class NativeRun(WebRun):
                 continue
             for screen in self.screens:
                 name = screen.get("name")
-                self.launch(udid, screen)
-                shot, th = self.shoot(f"{name}-{pose}" if name else pose)
+                label = f"{name}-{pose}" if name else pose
+                for attempt in range(3):  # a blank or still-moving picture is retaken from a fresh launch
+                    self.launch(udid, screen)
+                    shot, th = self.shoot(label)
+                    if self.last_state == "ok":
+                        break
+                    if attempt < 2:
+                        self.reshot.append(label)
+                if self.last_state == "moving":
+                    self.moving.append(label)
                 issues = [] if self.running(udid) else [{"kind": "app-not-running", "detail": f"the app was gone in {pose} (crash?)"}]
                 self.rows.append({"label": f"{name} · {pose}" if name else pose, "screen": name, "pose": pose, "shot": shot, "thumb": th,
                                   "size": f"{st['activeScreen']} screen, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
@@ -537,6 +700,7 @@ class NativeRun(WebRun):
         udid = sim("ensure")
         if self.a.app:
             subprocess.run(["xcrun", "simctl", "install", udid, self.a.app], check=True)
+        self.apply_defaults(udid)
         poses = poses_from(self.a.poses)
         if self.a.order == "pose":
             return self.go_by_pose(udid, poses)
@@ -560,6 +724,14 @@ class NativeRun(WebRun):
                     continue
                 time.sleep(1.2)
                 shot, th = self.shoot(f"{name}-{pose}" if name else pose)
+                for _ in range(2):  # mid-scenario there is no fresh launch: wait and take it again
+                    if self.last_state == "ok":
+                        break
+                    self.reshot.append(f"{name}-{pose}" if name else pose)
+                    time.sleep(2)
+                    shot, th = self.shoot(f"{name}-{pose}" if name else pose)
+                if self.last_state == "moving":
+                    self.moving.append(f"{name}-{pose}" if name else pose)
                 issues = [] if self.running(udid) else [{"kind": "app-not-running", "detail": f"the app was gone after {pose} (crash?)"}]
                 self.rows.append({"label": label, "screen": name, "pose": pose, "shot": shot, "thumb": th,
                                   "size": f"{st['activeScreen']} screen, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",

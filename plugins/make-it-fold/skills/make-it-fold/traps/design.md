@@ -33,9 +33,9 @@ The scorecard and the patterns are in `references/design.md`.
 
 ### G-05 Filling the room by making everything bigger
 - **Went wrong:** An app scaled its type and controls with the window's width. On the inner screen everything came out about one and a half times the size: giant text, the same amount on screen as the cover.
-- **Spot it:** a scale factor multiplied by the screen or window width; inner-screen text visibly larger than cover text.
-- **Fix:** cap any size scale at the phone value, and spend the extra room on more content.
-- **Check:** the same label measures the same height in the cover and inner pictures (allowing for pixel density).
+- **Spot it:** a scale factor multiplied by the screen or window width with no cap; inner-screen text far larger than cover text while the inner screen shows nothing more.
+- **Fix:** spend the room on more content first. A step larger is fine where the screen would otherwise sit empty (about 1.1 to 1.25 times the cover size, as on the biggest ordinary iPhone; `references/design.md` rule 7), but cap it there.
+- **Check:** the inner screen shows more than the cover, and no label is more than about 1.25 times its cover height (allowing for pixel density).
 - **Applies to:** all
 
 ### G-06 The full-width tray
@@ -101,3 +101,9 @@ The scorecard and the patterns are in `references/design.md`.
 - **Check:** in the book-pose picture the column gap is at half the picture's width.
 - **Applies to:** native / iPad / Expo
 
+### G-15 Columns, but the room still empty
+- **Went wrong:** Every screen of an app was split into columns and scored native, then the owner opened it on a real Duo and found half of each screen empty: a dashboard's left column ended halfway down, an upright list sat in a third of the width, and every size was the cover's size on a screen twice as big. "Two columns" had been treated as the goal instead of a filled screen.
+- **Spot it:** inner-screen pictures with a column that stops halfway, a list in a third of the width, or a block alone in open space; `duo-shot`'s biggest-empty-patch number over 25% on an inner-screen picture.
+- **Fix:** fill the height (header at the top, the main thing in the middle, actions on the bottom edge), put a list beside the summary or split it into two columns, and draw a step larger where there is still room (rule 7). Keep anything a finger taps from moving when it is tapped.
+- **Check:** at the owner's own text size and with a realistic day of data, every inner-screen picture's biggest empty patch is under 25%, or is the end of a scrolling list.
+- **Applies to:** all

@@ -24,6 +24,7 @@ Nothing to convert, so nothing to break. Build both layouts of every screen toge
 5. **Look and feel.** Use the person's brand or design rules if they have any. If not, use the
    system's components, type and colors and say so. Do not invent a brand.
 6. **Build one screen at a time, with proof.** After each screen: run it on the simulator,
-   `duo-shot` with the scenario, fill the scorecard, fix until it is native on both screens. Then
+   `duo-shot` with the scenario (the duo-shooter agent), the duo-judge agent's scorecard, fix until it
+   scores native on both screens. Then
    the next screen. Finish with the skill's steps 6 to 8.
 7. **Made-up data only**, and no real accounts, payments or messages (`scenario.md`).

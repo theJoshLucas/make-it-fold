@@ -1,7 +1,9 @@
 ---
 name: make-it-fold
 description: "Make an app look and work like it was designed for Apple's foldable iPhone Duo. Converts an iPhone, iPad or web app so every screen is laid out for the small cover screen and the big inner screen (keeping the app's own look), or starts a new Duo app from scratch. Fixes what breaks, redesigns the layouts, and proves it with pictures of every screen in every fold position on the Duo simulator, each scored for design. Reads Apple's current Duo documentation on every run. Use whenever someone says optimize / convert / redesign / prepare / fix / test this for the iPhone Duo, the foldable iPhone, folding, the cover screen or the inner screen, asks whether an app works or looks right on the Duo, or wants a new app built for it. Handles websites, home-screen web apps, web views in native apps, SwiftUI/UIKit, iPad and universal apps, Expo/React Native, and guided routes for Flutter, Capacitor, games and Mac ports."
-argument-hint: "[folder or URL] [fit]"
+argument-hint: "[folder or URL] [fit] [continue]"
+model: opus
+effort: high
 ---
 
 # make-it-fold
@@ -34,6 +36,12 @@ Scripts live in `${CLAUDE_PLUGIN_ROOT}/scripts/` (each explains itself with `--h
 in `${CLAUDE_SKILL_DIR}/references/`, traps in `${CLAUDE_SKILL_DIR}/traps/`. Read only the files
 this job needs (step 2 says which).
 
+**Three parts, three models.** You are the builder: the newest Opus at high effort (this skill sets it
+for the turn; after the person replies mid-job, `/duo continue` puts it back). Pictures are taken by the
+**duo-shooter** agent (the newest Sonnet), which only runs the duo-shot command you give it. Design
+verdicts come from the **duo-judge** agent (the newest Fable at low effort, or Opus), which sees only
+the pictures. **You never score your own layouts** (trap D-15).
+
 ## The job, in order
 
 **0. Setup, and fresh knowledge. Every run.**
@@ -45,6 +53,16 @@ this job needs (step 2 says which).
 - `${CLAUDE_PLUGIN_ROOT}/scripts/duo-docs`. It downloads Apple's current Duo pages and says which
   have changed. Read every page it marks **READ**, from the path it prints. Apple's pages beat this
   plugin's recipes: follow Apple and say in the report which recipe was stale.
+- `${CLAUDE_PLUGIN_ROOT}/scripts/duo-docs` also checks that every rule the design guide credits to
+  Apple is in Apple's own words on Apple's pages. A quote it lists as missing is the plugin's rule, not
+  Apple's: never tell the person "Apple says" it.
+- `${CLAUDE_PLUGIN_ROOT}/scripts/duo-models`. It reads Anthropic's live model list and checks what
+  this Claude Code maps "opus", "sonnet" and "fable" to. **behind**: tell the person in one line and ask
+  whether to update Claude Code; never update without a yes, and carry on with what is there. Judge
+  **not chosen yet**: ask once whether the judge may run on Fable (on some plans Fable bills usage
+  credits, which is money past the plan), then `duo-models judge fable` or `duo-models judge opus`.
+  Judge **unavailable** (a usage limit, no Fable access): use the duo-judge agent with model "opus"
+  this run and say so in the report.
 - `${CLAUDE_PLUGIN_ROOT}/scripts/duo-notes show`. This computer's own notebook of lessons from
   earlier Duo jobs. Also read the app's `duo/notes.md` if it has one.
 
@@ -61,15 +79,26 @@ Read the app's own design rules if it has any (`DESIGN.md`, a style guide, desig
 
 **3. Before.** List **every screen** the app has: tabs, pushed pages, sheets, forms, menus, empty
 and full states. Put them in `duo/scenario.json` (`references/scenario.md`) with one
-fold-in-the-middle-of-a-task step. Run the app locally, never against live data, then
+fold-in-the-middle-of-a-task step. **Shoot what the owner sees** (trap T-20): find out, or ask, the
+owner's text size and any set-up the app remembers (who is signed in, a first-run question already
+answered), put them in the scenario's `defaults` (native) or the app's own state (web), and seed a
+realistic amount of made-up data. Run the app locally, never against live data. Then hand the
+duo-shooter agent (`make-it-fold:duo-shooter`) the exact command:
 `duo-shot web --url <local url> --scenario duo/scenario.json --label before` or
-`duo-shot native --bundle <id> --app <path> --scenario duo/scenario.json --label before`.
-Look at every picture at full size, not the thumbnails.
+`duo-shot native --bundle <id> --app <path> --scenario duo/scenario.json --label before`
+(full paths; for more than about 15 screens, one command per pose with `--poses <pose>`, so each finishes
+inside 10 minutes). Its answer is duo-shot's `RESULT` line: every name under `blank` or `moving` gets
+looked at before anything is judged. Run nothing else on the simulator while it shoots.
 
-**4. Judge the design, then plan.** `duo-shot` writes a `review.md` beside the pictures. Fill it:
-for every screen, the eight scorecard questions (`references/design.md`) on the cover and on the
-inner screen, and a verdict: **native**, **fits only** or **broken**. (No simulator in this
-session: write the same scorecard in `duo/review.md` from the code, marked "not seen".) Then write the layout plan,
+**4. The judge scores, then you plan.** `duo-shot` writes a `review.md` beside the pictures, with the
+biggest empty patch measured on each one. Hand the duo-judge agent (`make-it-fold:duo-judge`; model
+"opus" if step 0 said the judge is unavailable) only these: the run folder, the path to
+`${CLAUDE_SKILL_DIR}/references/design.md`, the owner's settings, and one sentence on what the app is
+for. Never your plan, your code or your opinion of the screens. It writes `judge.md` beside the
+pictures: the eight answers for the cover and the inner screen, a verdict per screen (**native**,
+**fits only** or **broken**) and the three worst things on each. Those verdicts are final: you may add a
+line saying you disagree, never change one. (No simulator in this session: write the scorecard in
+`duo/review.md` from the code yourself, every verdict **built, not seen**.) Then write the layout plan,
 one line per screen that is not native: what it becomes on the cover, on the inner screen sideways
 (what an unfolding phone shows first) and on the inner screen upright, using the patterns table.
 Show the person the plan in a few lines and keep going; stop for a yes only if the plan would
@@ -88,18 +117,18 @@ unrelated clean-up. Phones keep their look, not their bugs: a rule that picks a 
 orientation, device type or screen size is still replaced, with a width rule that gives phones
 the same result. Native: guard iOS 27.1 APIs with `if #available(iOS 27.1, *)`.
 
-**6. After.** The same `duo-shot` with `--label after` (add `--poses all` for the half-open poses),
-then `duo-shot compare <before folder> <after folder>` for the side-by-side page. Fill the new
-`review.md`. Then the normal-phone check: web at 390 px, a phone sideways (about 850 x 390) and the
+**6. After.** The duo-shooter agent runs the same `duo-shot` with `--label after` (add `--poses all`
+for the half-open poses); then `duo-shot compare <before folder> <after folder>` for the side-by-side
+page. The duo-judge agent scores the new run, the same way as in step 4. Then the normal-phone check: web at 390 px, a phone sideways (about 850 x 390) and the
 app's desktop width; native on an iPhone 17 Pro simulator on iOS 27, upright and sideways, and on
 the app's minimum iOS. It must match "before". Up to 3
-build-and-recheck rounds. Still not native after 3: stop and report what is left.
+build, shoot and judge rounds. Still not native after 3: stop and report what is left.
 
 **7. Report** in this exact shape (plain words; the reader may not be an engineer):
 - **What changed**: one line per screen (how it is laid out now on each screen), then one line
   per fit fix.
-- **Scorecard**: every screen with its before and after verdict for the cover and the inner
-  screen, and the path to `compare.html`.
+- **Scorecard**: every screen with the judge's before and after verdict, copied from the two
+  `judge.md` files word for word, which model judged, and the path to `compare.html`.
 - **Proof, by tier**: what the Duo simulator proved; what a desktop browser proved; what was only
   read in code; what only the real phone can prove (feel, camera, crease, real hinge, split view).
 - **Still open**: anything not native, failed, unchecked, or needing a decision.
@@ -118,9 +147,11 @@ maintainers so every user gets it.
   the scenario passes in every required pose, folding mid-task loses nothing, ordinary phones look
   as before, the tested revision is named, and evidence is labelled by tier. For a fit-only job,
   "passes, no changes" is a complete, good answer.
-- Design verdicts come from pictures you looked at in this job. With no simulator and no browser,
+- Design verdicts come from the duo-judge agent, from pictures taken in this job at the owner's
+  settings. Never write, soften or "correct" a verdict yourself. With no simulator and no browser,
   still do the design work, but the verdict is **built, not seen** (never "native"), and the report
   says the design was read from code only.
+- Never update Claude Code, Xcode, macOS or anything else on the person's computer without their yes.
 - Never test against live data, real payments, real messages or analytics; never put real
   passwords in a scenario. Never publish without asking.
 - Never run `xcrun simctl io ... screenConfig` on the Duo (it crashes the simulator).

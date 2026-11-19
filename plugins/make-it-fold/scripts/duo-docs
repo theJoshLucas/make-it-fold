@@ -3,6 +3,8 @@
 
   duo-docs                 fetch every page, print one line per page (READ / same / changed / offline)
   duo-docs path <name>     print where the saved copy of one page is (for reading it)
+  duo-docs quotes          check, against the saved copies only, that every quote the plugin's design
+                           guide credits to Apple is really on Apple's pages (also part of every run)
   duo-docs --json          the same report as JSON
   duo-docs --write-baseline   (plugin maintainers) record today's pages as what the recipes were written from
 
@@ -28,6 +30,8 @@ LIST = ROOT / "tools" / "apple-docs.tsv"
 BASELINE = ROOT / "tools" / "apple-docs.baseline.json"
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold" / "apple-docs"
 ALLOWED_HOST = "https://developer.apple.com/"
+GUIDE = ROOT / "skills" / "make-it-fold" / "references" / "design.md"
+QUOTE = re.compile(r'"([^"]*)"')  # every pair of straight quotes, in order, so short ones keep the pairing right
 LINK = re.compile(r"doc://com\.apple\.documentation(/[\w\-./()_:]+)|\]\((/(?:documentation|design)/[\w\-./()_:#]+)\)")
 
 
@@ -137,6 +141,40 @@ def run(write_baseline=False):
     return {"date": today, "recipes_written": base["written"], "pages": report, "new_links": new_links}
 
 
+def flat(text):
+    """Curly quotes made straight and every run of whitespace one space, so a wrapped line still matches."""
+    for a, b in (("\u2019", "'"), ("\u2018", "'"), ("\u201c", '"'), ("\u201d", '"')):
+        text = text.replace(a, b)
+    return re.sub(r"\s+", " ", text).lower()
+
+
+def check_quotes():
+    """Every quoted phrase in the design guide that follows the word Apple must be on a saved Apple page.
+    A phrase that is not there is the plugin's own wording dressed up as Apple's: the job must not cite it."""
+    if not GUIDE.exists():
+        return {"checked": 0, "missing": [], "no_copies": False}
+    guide = re.sub(r"\s+", " ", GUIDE.read_text())
+    saved = " ".join(flat(f.read_text(errors="replace")) for f in CACHE.glob("*.md"))
+    if not saved:
+        return {"checked": 0, "missing": [], "no_copies": True}
+    quotes = [m.group(1) for m in QUOTE.finditer(guide)
+              if len(m.group(1)) >= 12 and "Apple" in guide[max(0, m.start() - 160):m.start()]]
+    missing = [q for q in quotes if flat(q) not in saved]
+    return {"checked": len(quotes), "missing": missing, "no_copies": False}
+
+
+def say_quotes(q):
+    if q["no_copies"]:
+        print("\nNo saved Apple pages to check the design guide's quotes against yet: run duo-docs first.")
+    elif q["missing"]:
+        print(f"\nNOT ON APPLE'S PAGES ({len(q['missing'])} of {q['checked']} quotes the design guide credits to Apple):")
+        for m in q["missing"]:
+            print(f'  "{m}"')
+        print("Treat each of those rules as the plugin's own, never as Apple's, and say so in the report.")
+    else:
+        print(f"\nEvery quote the design guide credits to Apple is on Apple's saved pages ({q['checked']} checked).")
+
+
 def main():
     args = sys.argv[1:]
     if "-h" in args or "--help" in args:
@@ -151,7 +189,12 @@ def main():
             raise SystemExit(f"duo-docs: no saved copy of {args[1]} yet; run duo-docs first")
         print(p)
         return
+    if args[:1] == ["quotes"]:
+        q = check_quotes()
+        say_quotes(q)
+        sys.exit(1 if q["missing"] else 0)
     res = run(write_baseline="--write-baseline" in args)
+    res["quotes"] = check_quotes()
     if "--json" in args:
         print(json.dumps(res, indent=2))
         return
@@ -167,6 +210,7 @@ def main():
             print(f"  https://developer.apple.com{l}")
     if any(r.get("offline") for r in res["pages"]):
         print("\nSome pages could not be fetched fresh. Say so in the report; never fill the gap from memory.")
+    say_quotes(res["quotes"])
     if any(r["status"] == "READ" for r in res["pages"]):
         print("\nRead every page marked READ now (use the path shown).")
 

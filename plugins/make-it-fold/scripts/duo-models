@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""duo-models: which Claude model does each part of a Duo job run on, checked against Anthropic's live list.
+
+  duo-models                  check, and print one line per part of the job (builder, pictures, judge)
+  duo-models --json           the same as JSON
+  duo-models judge fable      remember who judges the pictures on this computer: fable (the default the
+  duo-models judge opus       plugin is built for) or opus. Ask the person once before the first job:
+                              on some plans Fable bills usage credits, which is money past the plan.
+
+The parts of a job, and the model each is meant to run on:
+  builder   the job itself (/duo, /duo-new): the newest Opus, at high effort
+  pictures  the duo-shooter agent, which only runs duo-shot: the newest Sonnet
+  judge     the duo-judge agent, which scores the pictures: the newest Fable at low effort, or Opus
+
+Anthropic's model list is read from its live page every day (platform.claude.com, nothing about this
+computer is sent). The names this copy of Claude Code uses ("opus", "sonnet", "fable") are checked with
+one tiny request each, at most once a day per Claude Code version. When Claude Code maps a name to an
+older model than Anthropic's newest, this says so: ask the person before updating Claude Code. It never
+updates anything itself.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date
+from pathlib import Path
+
+LIST_URL = "https://platform.claude.com/docs/en/about-claude/models/overview.md"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold" / "models.json"
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "make-it-fold" / "models.json"
+ID = re.compile(r"\bclaude-(opus|sonnet|haiku|fable)-(\d+)(?:-(\d+))?\b")
+PARTS = [("builder", "opus", None, "the job itself (/duo, /duo-new), at high effort"),
+         ("pictures", "sonnet", None, "the duo-shooter agent (runs duo-shot, judges nothing)"),
+         ("judge", "fable", "low", "the duo-judge agent (scores the pictures it is shown)")]
+
+
+def load(p, default):
+    try:
+        return json.loads(p.read_text())
+    except (OSError, ValueError):
+        return default
+
+
+def save(p, data):
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(data, indent=1))
+    except OSError:
+        pass
+
+
+def version(model_id):
+    m = ID.fullmatch(model_id or "")
+    return (int(m.group(2)), int(m.group(3) or 0)) if m else (0, 0)
+
+
+def newest_online():
+    """Anthropic's newest model id per family, from the live page. None when the page cannot be read."""
+    try:
+        req = urllib.request.Request(LIST_URL, headers={"User-Agent": "make-it-fold"})
+        with urllib.request.urlopen(req, timeout=12) as r:
+            text = r.read().decode("utf-8", "replace")
+    except OSError as e:
+        return None, str(e)
+    best = {}
+    for m in ID.finditer(text):
+        fam, mid = m.group(1), m.group(0)
+        if version(mid) > version(best.get(fam, "")):
+            best[fam] = mid
+    return (best, None) if best else (None, "no model ids on the page")
+
+
+def claude_version():
+    try:
+        r = subprocess.run(["claude", "--version"], capture_output=True, text=True, timeout=20)
+        return r.stdout.strip().split()[0] if r.returncode == 0 and r.stdout.strip() else None
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def probe(alias, effort=None):
+    """Ask this Claude Code for one tiny answer on `alias` and read back which model really answered."""
+    cmd = ["claude", "-p", "--model", alias, "--output-format", "json", "Reply with the single word ok"]
+    if effort:
+        cmd[2:2] = ["--effort", effort]
+    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=90, stdin=subprocess.DEVNULL, env=env, cwd=Path.home())
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return {"ok": False, "why": f"could not ask ({e})"}
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        return {"ok": False, "why": (r.stderr or r.stdout).strip()[:200] or f"no answer (exit {r.returncode})"}
+    used = [k for k in (d.get("modelUsage") or {}) if ID.fullmatch(k)]
+    if not used:
+        why = str(d.get("result") or d.get("error") or "no model answered").strip()
+        return {"ok": False, "why": why[:240]}
+    return {"ok": True, "model": max(used, key=version)}
+
+
+def check(fresh=False):
+    cfg = load(CONFIG, {})
+    judge = cfg.get("judge")
+    cv = claude_version()
+    cache = load(CACHE, {})
+    key = f"{date.today().isoformat()} {cv} judge={judge}"
+    newest, err = newest_online()
+    if not fresh and cache.get("key") == key and cache.get("probes"):
+        probes = cache["probes"]
+    else:
+        todo = [(name, alias, eff) for name, alias, eff, _ in PARTS if not (name == "judge" and judge != "fable")]
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            res = list(ex.map(lambda t: probe(t[1], t[2]), todo))
+        probes = {name: r for (name, _, _), r in zip(todo, res)}
+        # A failed probe is not cached, so the next job asks again (a usage limit that has reset).
+        if all(r.get("ok") for r in probes.values()):
+            save(CACHE, {"key": key, "probes": probes})
+    out = {"claude_code": cv, "list": LIST_URL, "list_error": err, "newest": newest or {}, "judge_choice": judge, "parts": []}
+    for name, alias, eff, what in PARTS:
+        row = {"part": name, "name": alias, "effort": eff or ("high" if name == "builder" else None), "what": what}
+        fam = alias
+        if name == "judge" and judge != "fable":
+            row.update(name="opus", fallback=True)
+            fam = "opus"
+            if name == "judge" and not judge:
+                row["note"] = ("not chosen yet: ask the person once whether the judge may run on Fable (on some plans "
+                               "Fable bills usage credits, which is money past the plan), then run duo-models judge fable|opus. "
+                               "Until then the judge runs on Opus.")
+            p = probes.get("builder", {})
+        else:
+            p = probes.get(name, {})
+        if not p.get("ok"):
+            row["status"] = "unavailable"
+            row["note"] = (row.get("note") or p.get("why", "not checked")).rstrip(". ")
+            if name == "judge":
+                row["note"] += ". Run the duo-judge agent with model \"opus\" this time."
+        else:
+            row["model"] = p["model"]
+            want = (newest or {}).get(fam)
+            if want and version(p["model"]) < version(want):
+                row["status"] = "behind"
+                row["note"] = (f"this Claude Code ({cv}) maps \"{row['name']}\" to {p['model']}; Anthropic's newest is {want}. "
+                               "Ask the person whether to update Claude Code (claude update, then restart it). Never update without a yes.")
+            else:
+                row["status"] = "ok" if want else "not compared"
+                if not want:
+                    row["note"] = row.get("note") or "Anthropic's list could not be read, so this is what Claude Code has"
+        out["parts"].append(row)
+    return out
+
+
+def main():
+    args = sys.argv[1:]
+    if "-h" in args or "--help" in args:
+        print(__doc__.strip())
+        return
+    if args[:1] == ["judge"]:
+        if len(args) != 2 or args[1] not in ("fable", "opus"):
+            raise SystemExit("duo-models judge fable|opus")
+        cfg = load(CONFIG, {})
+        cfg["judge"] = args[1]
+        CONFIG.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG.write_text(json.dumps(cfg, indent=1))
+        print(f"The design judge on this computer runs on {args[1]} from now on.")
+        return
+    res = check(fresh="--fresh" in args)
+    if "--json" in args:
+        print(json.dumps(res, indent=2))
+        return
+    if res["list_error"]:
+        print(f"Could not read Anthropic's model list ({res['list_error']}). Say so in the report.")
+    else:
+        print("Anthropic's newest models today: " + ", ".join(res["newest"][f] for f in ("opus", "sonnet", "haiku", "fable") if f in res["newest"]))
+    print(f"Claude Code: {res['claude_code'] or 'not found'}\n")
+    for r in res["parts"]:
+        eff = f" at {r['effort']} effort" if r.get("effort") else ""
+        got = f" -> {r['model']}" if r.get("model") else ""
+        print(f"  {r['status']:12} {r['part']:9} \"{r['name']}\"{got}{eff}: {r['what']}")
+        if r.get("note"):
+            print(f"               {r['note']}")
+
+
+if __name__ == "__main__":
+    main()

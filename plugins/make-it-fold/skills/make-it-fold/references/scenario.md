@@ -43,7 +43,13 @@ Keep app-specific notes for the next job in `duo/notes.md`.
 ```
 Each screen may use `args` (launch arguments), `env` (environment values the app reads at launch),
 `url` (a link the app opens), `taps` (points to tap, in the first pose, after launch) and `wait`
-(seconds to settle, default 3). Most apps need a small debug-only switch to open a screen directly
+(seconds before the first capture, default 3; duo-shot then waits until two captures in a row match).
+
+**The owner's settings** (trap T-20). `"defaults": {"textSize": 0, "signedInAs": "Test"}` at the top
+level is written into the app's settings (its `UserDefaults`) with the app closed, before the first
+launch, so the pictures show what the owner sees: their text size, the first-run questions already
+answered. Values are text, whole numbers, decimals or true/false. Use the app's own key names (read
+them in the code), and made-up values only. They are listed in `review.md` for the judge. Most apps need a small debug-only switch to open a screen directly
 with made-up data: add one (never in release builds) and write it in `duo/notes.md`. Include every
 sheet, form and menu: they are where a stretched layout shows most.
 With many screens add `--order pose`: it folds once and then starts every screen in that pose, which is many

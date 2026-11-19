@@ -1,5 +1,57 @@
 # Current status
 
+## 2026-11-19: v0.2.2, built and checked, NOT published
+- Why: on a real app, v0.2.1's job scored every screen "native", and the owner found half of each big screen
+  empty on a real Duo. Three causes, all in the plugin:
+  - The agent that built the layouts also scored them. Its report scored a screen "native" while listing, under
+    "still open", that the same screen left half of itself empty. The scorecard question that should have failed
+    it was already there.
+  - `references/design.md` credited Apple with "Same sizes: text and controls keep their normal size on the inner
+    screen". Apple's page says that only for games, beside "be sure to fill the screen"; for apps it says content
+    "may move or change size". Following it, the job shrank the inner screen's text.
+  - The pictures were taken at the default text size, with a first-run question showing, while the owner uses a
+    smaller size and a set-up app, so the real phone was emptier than any picture.
+- What changed:
+  - Three parts, three models: the job itself on the newest Opus at high effort (`model`/`effort` on the skill,
+    `/duo` and `/duo-new`; `/duo continue` resumes after a reply); the new `agents/duo-shooter.md` (Sonnet) runs
+    the duo-shot command; the new `agents/duo-judge.md` (Fable at low effort, or Opus) scores the pictures and
+    writes `judge.md`. The builder hands the judge only the run folder, the scorecard, the owner's settings and one
+    sentence about the app, and copies its verdicts as they are.
+  - New `duo-models`: Anthropic's live model list, and what this Claude Code maps each name to; "behind" means ask
+    the person before updating, never update. The judge's model is asked once (Fable can bill usage credits).
+  - `duo-docs` checks every quote the design guide credits to Apple is on Apple's saved pages; `dev/check` runs it.
+  - `duo-shot`: native pictures wait until two captures match and are retaken when blank or still moving;
+    scenario `defaults` set the owner's settings; every picture gets a biggest-empty-patch number (over 25% on the
+    inner screen is flagged); the last line is `RESULT {json}`. Text-growth design note now fires over 1.25x.
+  - `design.md`: Apple's rules carry Apple's words; rule 7 is now "sizes may change; the room must not sit empty"
+    (marked as the plugin's rule); scorecard questions 1 and 2 rewritten. G-05 rewritten; new traps G-15, D-15,
+    T-19, T-20 (79 in all). `web.md` sizes line rewritten.
+- Choosing the picture model: Haiku and Sonnet each ran the same 54-picture job twice. Pictures: a tie (one Haiku
+  picture caught a form mid-slide, a fault of duo-shot's fixed wait, now fixed). Instructions: Haiku ran the job in
+  the background against them both times and once took 130 steps; Sonnet followed them both times. Cost at list
+  prices: Haiku $0.08 and $0.96, Sonnet $0.63 and $0.56. Sonnet chosen. Fast mode is not offered on either.
+- Proven on the Duo simulator (this laptop, Xcode 27.2, iOS 27.2), each also tried wrong:
+  - `duo-shot web`: buggy Setlist still 26 issues (exit 1), fixed Setlist 0 (exit 0), both with RESULT lines.
+  - `duo-shot native` on a real 18-screen app, 3 poses, with `defaults` written over a deliberately wrong text
+    size: 54 of 54 pictures, none blank or moving, the settings applied, 7 min 10 s (about 5 min 20 s before the
+    settle check). Bad `defaults` refused (exit 2).
+  - `duo-docs quotes`: 12 quotes found; a made-up "Apple" quote flagged (exit 1); no saved pages gives a note.
+  - `duo-models`: newest Opus and Sonnet matched; the Fable judge reported unavailable at a usage limit (use Opus);
+    a pretend newer Opus gave "behind"; no internet gave "not compared"; no judge chosen gave "ask once".
+  - Both agents load from the plugin folder (`claude -p --plugin-dir`): duo-shooter ran a duo-shot and answered
+    with its RESULT line; duo-judge, called normally, hit the Fable limit, was called again on Opus, and scored the
+    buggy Setlist "broken" with three findings that match its planted bugs. On the real app's 54 pictures (Opus,
+    about $2.25 of usage, 3 minutes) it scored all 18 screens "fits only": text-only tabs in the side strip, forms as
+    full-width bottom trays on the inner screen held upright, uneven gaps. At least one of its findings was wrong
+    (it called a two-column list clipped; the picture shows it whole).
+- NOT done / unverified:
+  - The judge has not run on Fable (the maintainer's Fable allowance is used up until 2026-11-22).
+  - No full `/duo` job has run end to end on the new flow. The exams were not rerun: they run sandboxed with no
+    simulator, so they cannot reach the shooter or the judge.
+  - `model: opus` in a plugin command header was checked with a test command: it moved a Haiku session onto
+    Opus for that turn. `effort: high` cannot be seen from outside; it follows Claude Code's documentation.
+  - Not published: this version lives on a local branch until the maintainer says to publish.
+
 ## 2026-11-19: v0.2.1, after the first full job on a real app
 - The full native job ran end to end on a real 16-screen SwiftUI app (the one that exposed v0.1.0's miss):
   before and after pictures in three positions, a scorecard, new layouts, a fold in the middle of a form, dark
