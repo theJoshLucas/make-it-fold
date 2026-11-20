@@ -10,8 +10,8 @@ native shell checklist plus a web page checklist.
 |---|---|---|---|
 | R1 | Shell hands every inset to the page: `.ignoresSafeArea()` on the web view AND `scrollView.contentInsetAdjustmentBehavior = .never` | `PracticeWrapper/ContentView.swift`, `PracticeWrapper/WebView.swift` | Either leave the shell as is and make the page own all four insets (acceptable, and the shell's full-bleed is kept), or let the shell respect the safe area. Removing only one of the two shell settings while the page ignores insets is not a fix |
 | R2 | Viewport tag lacks `viewport-fit=cover`, so every `env(safe-area-inset-*)` reads 0 | `Web/index.html` | `viewport-fit=cover` present |
-| R3 | Header and floating action button use only top and bottom insets; the 84 px side bar (left, in one cover-landscape direction) overlaps the title and the button never clears it | `Web/style.css` `.top`, `.fab` | `env(safe-area-inset-left)` and `env(safe-area-inset-right)` on both the header and the button |
-| R4 | Layout by `screen.width` (reports the cover size, 466, even on the inner screen) and the grid is forced to that width | `Web/app.js` `layout()` | width of the space the page actually has (`innerWidth`, a CSS media or container query, or plain CSS grid `auto-fit`); no `screen.width` |
+| R3 | Header and floating action button use only top and bottom insets; the 84 px vertical bar (left, in one outer-landscape direction) overlaps the title and the button never clears it | `Web/style.css` `.top`, `.fab` | `env(safe-area-inset-left)` and `env(safe-area-inset-right)` on both the header and the button |
+| R4 | Layout by `screen.width` (reports the outer display size, 466, even on the inner display) and the grid is forced to that width | `Web/app.js` `layout()` | width of the space the page actually has (`innerWidth`, a CSS media or container query, or plain CSS grid `auto-fit`); no `screen.width` |
 
 A fix that adds `viewport-fit=cover` WITHOUT adding left/right padding is worse than the bug
 (R3 then shows up as real overlap), so the graders check them together.

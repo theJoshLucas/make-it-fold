@@ -19,7 +19,7 @@ page at the new width.
 
 ## overlays (dialogs, menus, popovers, sheets, toasts)
 After a resize, open overlays must re-position or close cleanly. Check: the overlay fits 382 px
-wide and 368 px tall, its close button is not under the side bar (home-screen apps and web views) or the home
+wide and 368 px tall, its close button is not under the vertical bar (home-screen apps and web views) or the home
 indicator (34 px), and it is not centered on the fold line in book pose. Positioning libraries
 (Floating UI, Radix, Headless UI) re-position on resize when their auto-update is on.
 

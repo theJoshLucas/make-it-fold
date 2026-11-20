@@ -27,7 +27,7 @@ Before changing anything:
 ## 3. DEFINITION OF DONE
 Do not report a task complete until ALL of:
 - `dev/check` exits green, AND
-- you covered EVERY affected surface (all 7 poses, all routes the change touches; no sampling), AND
+- you covered EVERY affected surface (all 8 poses, all routes the change touches; no sampling), AND
 - you tried it WRONG, not just right (missing Xcode, no simulator, a bad URL, a second run), AND
 - every sentence in `README.md` the change touches is still true, AND
 - if the shape of the system changed, `docs/architecture.md` says so now, AND

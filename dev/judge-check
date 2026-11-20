@@ -19,7 +19,7 @@ OUT="${TMPDIR:-/tmp}/make-it-fold-judge-check/$(date +%Y%m%d-%H%M%S)"; mkdir -p 
 UDID=$("$P/duo-sim" ensure) || { echo "judge-check: no Duo simulator"; exit 2; }
 build() { (cd "$1" && xcodebuild build -project GigLog.xcodeproj -scheme GigLog -destination "id=$UDID" -derivedDataPath "$OUT/$2" CODE_SIGNING_ALLOWED=NO -quiet >/dev/null 2>&1) && echo "$OUT/$2/Build/Products/Debug-iphonesimulator/GigLog.app"; }
 GIG_SCEN="$OUT/gig.json"; printf '{"backend":"mocked","screens":[{"name":"list"},{"name":"gig","taps":[[120,160]],"wait":3}]}' > "$GIG_SCEN"
-POSES=cover-portrait,cover-landscape,inner-portrait,inner-landscape
+POSES=outer-portrait,outer-landscape,inner-portrait,inner-landscape
 shoot() {  # one picture run; tried a second time if it printed no RESULT line (a simulator still waking up)
   local log="$OUT/shoot-$#-$RANDOM.txt"
   for try in 1 2; do

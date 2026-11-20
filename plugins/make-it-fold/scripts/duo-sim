@@ -3,17 +3,20 @@
 
 A thin wrapper over duoctl (MIT, https://github.com/skarol/duoctl, installed pinned by
 /duo-setup). It owns one simulator called "Duo Kit" and verifies every pose from duoctl's own
-readback of the active screen and its size. Two locks keep sessions apart: one per command, and
+readback of the active display and its size. Two locks keep sessions apart: one per command, and
 one that duo-shot holds for a whole check, so nobody else folds the simulator between a pose
 and its screenshot. duoctl only runs if its folder is exactly the reviewed commit, untouched.
 It never uses `simctl io ... screenConfig` (that crashes SpringBoard).
 
   duo-sim ensure                 create/boot "Duo Kit" if needed, print its UDID
-  duo-sim pose <name>            cover-portrait | cover-landscape | cover-landscape-flipped |
-                                 inner-portrait | inner-landscape | book | laptop
-  duo-sim state                  JSON: hinge angle, active screen, orientation, size in points
-  duo-sim shot <file.png>        full-resolution screenshot of the screen that is showing
-  duo-sim tap <x> <y>            tap a point (points of the active screen, either screen)
+  duo-sim pose <name>            outer-portrait | outer-landscape | outer-landscape-flipped |
+                                 inner-portrait | inner-landscape | book | laptop | tent
+                                 (Apple's names: outer and inner display; book, laptop and tent
+                                 are the partially open poses)
+  duo-sim state                  JSON: hinge angle, active display (outer or inner), orientation,
+                                 size in points
+  duo-sim shot <file.png>        full-resolution screenshot of the display that is showing
+  duo-sim tap <x> <y>            tap a point (points of the active display, either display)
   duo-sim swipe <x1> <y1> <x2> <y2>
   duo-sim open-url <url>         open a URL in the simulator's Safari
   duo-sim reset-safari           close all of Duo Kit's Safari tabs (old test tabs skew results)
@@ -43,17 +46,22 @@ DEVICE_TYPE = "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo"
 PINNED = (Path(__file__).resolve().parent.parent / "tools" / "duoctl.pin").read_text().split()[0] \
     if (Path(__file__).resolve().parent.parent / "tools" / "duoctl.pin").exists() else None
 
-# pose -> (steps, expected screen, expected shape). Flipped poses are also checked by name below.
+# pose -> (steps, expected display, expected shape). Flipped poses are also checked by name below.
+# Names are Apple's: the outer display (closed) and the inner display (open), portrait or landscape.
 POSES = {
-    "cover-portrait":          (["close", ("rotate", "portrait")], "cover", "portrait"),
-    "cover-landscape":         (["close", ("rotate", "landscape")], "cover", "landscape"),
-    "cover-landscape-flipped": (["close", ("rotate", "landscape-flipped")], "cover", "landscape"),
+    "outer-portrait":          (["close", ("rotate", "portrait")], "outer", "portrait"),
+    "outer-landscape":         (["close", ("rotate", "landscape")], "outer", "landscape"),
+    "outer-landscape-flipped": (["close", ("rotate", "landscape-flipped")], "outer", "landscape"),
     "inner-landscape":         (["close", ("rotate", "portrait"), "open"], "inner", "landscape"),
     "inner-portrait":          (["close", ("rotate", "landscape"), "open"], "inner", "portrait"),
-    # Half-open: the fold runs down the middle of a wide screen (book) or across a tall one (laptop).
+    # Partially open. Book: the fold runs down the middle of the inner display in landscape. Laptop:
+    # across it in portrait. Tent: opened partway from closed and stood on its edges, so the outer
+    # display stays on, in landscape (either way round: the simulator turns it over as it opens).
     "book":                    (["close", ("rotate", "portrait"), "open", "half"], "inner", "landscape"),
     "laptop":                  (["close", ("rotate", "landscape"), "open", "half"], "inner", "portrait"),
+    "tent":                    (["close", ("rotate", "landscape"), ("hinge", "75")], "outer", "landscape"),
 }
+PARTLY_OPEN = ("book", "laptop", "tent")
 
 
 class SimError(Exception):
@@ -172,7 +180,11 @@ def duoctl(udid, *args):
 
 
 def read_state(udid):
-    return json.loads(duoctl(udid, "state"))
+    """duoctl's readback, with its name for the outer display ("cover") changed to Apple's ("outer")."""
+    st = json.loads(duoctl(udid, "state"))
+    if st.get("activeScreen") == "cover":
+        st["activeScreen"] = "outer"
+    return st
 
 
 def shape(st):
@@ -184,6 +196,9 @@ def step(udid, s):
     if isinstance(s, tuple) and s[0] == "rotate":
         r = run([duoctl_path(), "-d", udid, "rotate", s[1]], check=False)
         return r.returncode == 0
+    if isinstance(s, tuple) and s[0] == "hinge":
+        duoctl(udid, "hinge", s[1])
+        return True
     duoctl(udid, s)
     return True
 
@@ -191,7 +206,7 @@ def step(udid, s):
 def set_pose(udid, name, tries=3):
     if name not in POSES:
         raise SimError(f"unknown pose {name!r}. Poses: {', '.join(POSES)}")
-    steps, screen, want_shape = POSES[name]
+    steps, display, want_shape = POSES[name]
     last = None
     for _ in range(tries):
         for s in steps:
@@ -199,20 +214,20 @@ def set_pose(udid, name, tries=3):
         deadline = time.time() + 8
         while time.time() < deadline:
             last = read_state(udid)
-            flip_ok = (name != "cover-landscape-flipped") or last.get("orientation") == "landscape-flipped"
-            if name == "cover-landscape":
+            flip_ok = (name != "outer-landscape-flipped") or last.get("orientation") == "landscape-flipped"
+            if name == "outer-landscape":
                 flip_ok = last.get("orientation") == "landscape"
-            if last["activeScreen"] == screen and shape(last) == want_shape and flip_ok:
-                if name in ("book", "laptop"):
+            if last["activeScreen"] == display and shape(last) == want_shape and flip_ok:
+                if name in PARTLY_OPEN:
                     angle = last.get("hingeAngle")
                     if angle is None or not (60 <= angle <= 120):
                         break
                 time.sleep(0.8)  # let the app finish laying out before anyone looks
                 return read_state(udid) | {"pose": name}
             time.sleep(0.4)
-    # Fallback: an app locked to portrait on the cover never rotates there, but the inner
-    # screen ignores orientation locks. Open first, then rotate on the inner screen.
-    if screen == "inner":
+    # Fallback: an app locked to portrait on the outer display never rotates there, but the inner
+    # display ignores orientation locks. Open first, then rotate on the inner display.
+    if display == "inner":
         duoctl(udid, "open")
         for o in ("portrait", "portrait-upside-down", "landscape", "landscape-flipped"):
             step(udid, ("rotate", o))
@@ -225,7 +240,7 @@ def set_pose(udid, name, tries=3):
                     last = read_state(udid)
                 time.sleep(0.8)
                 return read_state(udid) | {"pose": name, "via": "inner-rotate"}
-    raise SimError(f"could not reach pose {name!r} (the app may lock its orientation on this screen); "
+    raise SimError(f"could not reach pose {name!r} (the app may lock its orientation on this display); "
                    f"last state: {json.dumps(last)}")
 
 

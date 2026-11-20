@@ -10,7 +10,7 @@
     {
       "name": "make-it-fold",
       "source": "./plugins/make-it-fold",
-      "description": "Make websites and iPhone/iPad apps Duo-native: every screen laid out for both screens of Apple's foldable iPhone, proven with scored pictures.",
+      "description": "Make websites and iPhone/iPad apps Duo-native: every screen laid out for both displays of Apple's foldable iPhone, proven with scored pictures.",
       "category": "development"
     }
   ]

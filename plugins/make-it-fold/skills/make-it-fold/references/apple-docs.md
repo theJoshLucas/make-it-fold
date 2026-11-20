@@ -21,11 +21,11 @@ stale recipe in the report, and save the lesson with `duo-notes add`.
 | Name | What it is for |
 |---|---|
 | `overview` (every job) | Everything Apple wants for the Duo: resizing, bars, arrangement views, reserved regions |
-| `design` (every job) | The design rules: two screens, poses, the side rail, reserved regions, split and arrangement views |
+| `design` (every job) | The design rules: two displays, poses, the vertical bar, reserved regions, split and arrangement views |
 | `arrangement-swiftui`, `arrangement-uikit` | Two views that re-arrange around the fold |
 | `reserved-region` | Camera and fold areas content must avoid |
-| `vertical-bar` | Which edge the rail is on, and how to read it |
-| `sheet-placement` | Putting a sheet on one side of the inner screen |
+| `vertical-bar` | Which edge the vertical bar is on, and how to read it |
+| `sheet-placement` | Putting a sheet on one side of the inner display |
 | `hinge` | Hinge angle and status (optional features) |
 | `fullscreen-key` | `UIRequiresFullScreen` going away |
 | `launch-screen` | Launch screen required (ITMS-90870) |

@@ -24,7 +24,7 @@ sheets, and keeping state across a fold.
 - Orientation checks (`UIDevice.current.orientation`, `interfaceOrientation`): use the size and
   size classes instead.
 - `userInterfaceIdiom == .pad` never fires on the Duo (it is an iPhone), so an iPad layout never
-  shows on the big inner screen. Switch to `horizontalSizeClass == .regular` (SwiftUI
+  shows on the big inner display. Switch to `horizontalSizeClass == .regular` (SwiftUI
   `@Environment(\.horizontalSizeClass)`). An iPhone can now have any size-class combination.
 
 ## safe-areas
@@ -41,21 +41,21 @@ bar.** Keep every such control reachable another way **on the same screen and in
 icon bar item with a title, or a button in the content. A long-press or a menu on some other
 screen does not count.
 iOS 27.1 adds (read Apple's overview live before using them; guard with `#available`):
-`axisBehavior` on an item decides whether it may go in the rail, `visibilityPriority` the order items
+`axisBehavior` on an item decides whether it may go in the vertical bar, `visibilityPriority` the order items
 leave for the overflow menu; `toolbarVerticalEdge` (UIKit trait `verticalBarEdge`) tells a custom view
-which side the rail is on; `toolbarVerticalBehavior` (UIKit `preferredVerticalBarBehavior`) keeps a
-sheet's bars horizontal on the cover, where they go vertical by default. The top of the rail is for Back
+which side the vertical bar is on; `toolbarVerticalBehavior` (UIKit `preferredVerticalBarBehavior`) keeps a
+sheet's bars horizontal on the outer display, where they go vertical by default. The top of the vertical bar is for Back
 or Close, then Done: Done in `topBarPinnedTrailing` (UIKit `pinnedTrailingGroup`), a custom Back or
-Close in `cancellationAction`. A hero image reaches under the rail with `backgroundExtensionEffect()`
+Close in `cancellationAction`. A hero image reaches under the vertical bar with `backgroundExtensionEffect()`
 (UIKit `UIBackgroundExtensionView`).
 
 ## reserved regions
 Framework views (split views, tab bars, alerts, context menus, sheets) avoid the camera and the fold
 by themselves. Scrolling containers do not: a list, table, scroll view or collection view does not
-split its content at the fold, so half-open, a row can run across the crease. Custom views that place
-content by hand, and scrolling content where a row on the crease is hard to read, must ask: UIKit
+split its content at the fold, so partially open, a row can run across the fold. Custom views that place
+content by hand, and scrolling content where a row on the fold is hard to read, must ask: UIKit
 `view.reservedRegions(kind: .occlusion / .division)`, SwiftUI `GeometryProxy.reservedRegions(kind:)`
-(iOS 27.1). The fold is a division only while half-open; the outer camera is always an occlusion, the
+(iOS 27.1). The fold is a division only while partially open; the outer camera is always an occlusion, the
 inner camera only while it is in use. A region's frame already includes its margins. Ask for inactive
 regions too (SwiftUI `options: .includeInactive`) and leave room for them, so the layout does not jump
 when the fold or the inner camera becomes active. SwiftUI mirrors the frames for right-to-left
@@ -68,11 +68,11 @@ input (an animation that follows the angle, a game control, an angle readout) an
 system sets. For layout use an arrangement view or the reserved regions, which update during layout.
 
 ## two-pane layouts
-On the inner screen, a list-plus-detail or content-plus-inspector layout fits side by side. Prefer
+On the inner display, a list-plus-detail or content-plus-inspector layout fits side by side. Prefer
 the system: `NavigationSplitView`, or iOS 27.1's `ArrangementView` / `UIArrangementViewController`
 (split or overlay). Never put an arrangement inside a list, scroll view, grid, collection view or split
 view, and never put a split view or tab view inside an arrangement: navigation goes around it. A split
-arrangement shows only its primary view on the cover held sideways, so the primary is the part people
+arrangement shows only its primary view on the outer display in landscape, so the primary is the part people
 need there. `.split.axes(.horizontal)` (or `.vertical`) limits it to one direction: in the other, only
 the primary view shows.
 
@@ -87,38 +87,38 @@ freeze the app in a layout loop. Defer it (`DispatchQueue.main.async`) and guard
 ## state across a fold
 Folding resizes the same running scene. Open sheets, half-typed text, scroll position, zoom and
 selection must survive. Switching between a compact and a regular layout must move the same
-state to the new view, not create fresh state (trap N-01). A sheet on the cover may become a
-column on the inner screen and back: keep it open in both, unless the person says otherwise.
+state to the new view, not create fresh state (trap N-01). A sheet on the outer display may become a
+column on the inner display and back: keep it open in both, unless the person says otherwise.
 
 ## sizes
 No fixed point sizes for whole screens or panes. Let panes size from the space they get.
 
 ## scenes
-Multiple windows of one app are inner-screen only; new windows cannot be created on the cover.
+Multiple windows of one app are inner-display only; new windows cannot be created on the outer display.
 
 ## duo-native layout
 The phone layout stays exactly as it is in compact width. Add a regular-width arrangement of the
 SAME views (`design.md` has the pattern for each kind of screen).
-- **Switch on space, not device.** The inner screen is regular width AND regular height, both
+- **Switch on space, not device.** The inner display is regular width AND regular height, both
   ways up. Use both size classes (`horizontalSizeClass == .regular && verticalSizeClass == .regular`;
-  UIKit: trait changes): a large ordinary iPhone held sideways is regular width but compact height,
+  UIKit: trait changes): a large ordinary iPhone in landscape is regular width but compact height,
   so it keeps its phone layout (trap G-07). Use the screen's own size (`onGeometryChange`,
   `ViewThatFits`) where size classes are too coarse.
 - **One screen, one state, two arrangements.** State lives above the switch; both branches use the
-  same child views. Proven on the Duo simulator (an item opened on the cover is still open, with
+  same child views. Proven on the Duo simulator (an item opened on the outer display is still open, with
   its half-typed text, after unfolding):
   ```swift
   @State private var selection: Item.ID?      // above the switch: survives a fold
   @Environment(\.horizontalSizeClass) private var width
   @Environment(\.verticalSizeClass) private var height
   var body: some View {
-      if width == .regular && height == .regular {          // the inner screen
+      if width == .regular && height == .regular {          // the inner display
           HStack(spacing: 0) {
               NavigationStack { ItemList(selection: $selection) }.frame(width: 320)
               Divider()
               NavigationStack { ItemDetail(id: selection) }   // or a "nothing selected" view
           }
-      } else {                                              // the cover, ordinary iPhones
+      } else {                                              // the outer display, ordinary iPhones
           NavigationStack(path: Binding(get: { selection.map { [$0] } ?? [] },
                                         set: { selection = $0.last })) {
               ItemList(selection: $selection)                // rows push with NavigationLink(value:)
@@ -130,28 +130,28 @@ SAME views (`design.md` has the pattern for each kind of screen).
   Text being typed belongs in a model object or above the switch too, never in `@State` inside
   one arrangement.
 - **List plus detail, settings:** the two-pane switch above, or `NavigationSplitView`, which does
-  both arrangements by itself and collapses on the cover (it also splits on a large ordinary
-  iPhone held sideways: say so if you use it). Keep the selection in state above it.
+  both arrangements by itself and collapses on the outer display (it also splits on a large ordinary
+  iPhone in landscape: say so if you use it). Keep the selection in state above it.
 - **Home or dashboard:** two columns in regular width (summary and status one side, actions and the
-  recent list the other). Sideways (669 tall) the main action must be in the first screenful.
+  recent list the other). In landscape (669 tall) the main action must be in the first screenful.
 - **Forms and sheets:** `.sheet` in compact width. In regular width show the same form view, with
   the same state object, as a trailing column or `.inspector`, or as a sized sheet
   (`.presentationSizing(.form)`; iOS 27's `.presentationPlacement(.leading)` or `.trailing`, sheets
   only, puts a sheet on one side so the screen behind stays visible: `duo-docs path sheet-placement`.
-  On the inner screen a trailing sheet's toolbar goes vertical; a leading or centred one stays
+  On the inner display a trailing sheet's toolbar goes vertical; a leading or centred one stays
   horizontal).
-  Never a tray as wide as the inner screen (trap G-06).
+  Never a tray as wide as the inner display (trap G-06).
 - **Content plus controls (player, map, camera, canvas):** `ArrangementView` (iOS 27.1): `.split`
   where the two sit side by side or stacked, `.overlay` where controls float over content. Overlay
-  layers the primary (the controls) over the secondary (the content) whenever the screen is flat,
-  open or closed; half-open it puts the secondary on the top or leading side of the fold and the
+  layers the primary (the controls) over the secondary (the content) whenever the display is flat,
+  open or closed; partially open it puts the secondary on the top or leading side of the fold and the
   primary on the bottom or trailing side. Keep navigation containers outside it.
-- **Grids:** even column counts on the inner screen, so nothing sits in the crease.
+- **Grids:** even column counts on the inner display, so nothing sits in the fold.
 - **Width limits:** hold single columns, buttons and fields to a phone-like width
   (`.frame(maxWidth: 560)`), aligned or centred on purpose.
-- **Bars:** use `TabView` and `.toolbar` so iOS moves them to the rail. Every item is a
+- **Bars:** use `TabView` and `.toolbar` so iOS moves them to the vertical bar. Every item is a
   `Label(title, systemImage:)`. Set `visibilityPriority` on the items that must stay visible.
-  A hand-drawn tab bar moves to the system's (trap G-08); never draw your own rail.
+  A hand-drawn tab bar moves to the system's (trap G-08); never draw your own vertical bar.
 - **Keep each screen's code where it is.** New arrangements go in the screen's own file. Do not
   move its controls, alerts or wording to another screen to make the layout easier.
 - **Do not scale type or controls with the window's width** (trap G-05).
@@ -160,6 +160,6 @@ SAME views (`design.md` has the pattern for each kind of screen).
 `duo-shot native --bundle <id> --app <path to .app> --scenario duo/scenario.json --label before|after`.
 Without a scenario it photographs only the screen the app opens on: list every screen in
 `duo/scenario.json` (`scenario.md`, "native screens") so each one is shot in every pose. The duo-shooter agent runs it
-(SKILL.md step 3) and the duo-judge agent fills `review.md` from the pictures (step 4). XCUITest screenshots only capture the cover display, and XCUITest cannot fold: use
+(SKILL.md step 3) and the duo-judge agent fills `review.md` from the pictures (step 4). XCUITest screenshots only capture the outer display display, and XCUITest cannot fold: use
 `duo-sim pose <name>` from the host between test steps (`traps/testing.md` T-02, T-11), and find
 elements by accessibility identifier, never fixed points.

@@ -1,7 +1,7 @@
 # Testing traps: simulator, screenshots, browser automation, verification
 
 Load for every job. Ordered by how often each one bites a Duo job, most first.
-Duo simulator facts used below: display ID 1 = cover, 3 = inner; cover screenshot 1398 x 2034, inner 2007 x 2853
+Duo simulator facts used below: display ID 1 = outer, 3 = inner; outer screenshot 1398 x 2034, inner 2007 x 2853
 (either orientation); folding is done in Device Hub or with a fold tool, never with `simctl`.
 
 ### T-01 Screenshots taken right after a fold come out black or half-drawn
@@ -12,16 +12,16 @@ Duo simulator facts used below: display ID 1 = cover, 3 = inner; cover screensho
 - **Applies to:** all
 
 ### T-02 Screenshots and taps hit the wrong display
-- **Went wrong:** XCUITest screenshots capture only display 1 (the cover), so every "inner screen" shot from a UI test came out black while the Duo was unfolded. The Duo's displays are ID 1 and ID 3, not 0 and 1. In another project, code that picked "the first view" out of two chose the wrong one on one device class.
+- **Went wrong:** XCUITest screenshots capture only display 1 (the outer display), so every "inner display" shot from a UI test came out black while the Duo was unfolded. The Duo's displays are ID 1 and ID 3, not 0 and 1. In another project, code that picked "the first view" out of two chose the wrong one on one device class.
 - **Spot it:** any capture or tap that doesn't name its display; a display or screen chosen by index.
-- **Fix:** take inner-screen shots with `xcrun simctl io <udid> screenshot --display=3` (cover: `--display=1`). Address displays by ID or label, never by position. XCUITest can't fold either: the test pauses on a signal (a file or a local HTTP call), the host folds, then the test resumes.
-- **Check:** each capture's pixel size matches its display (inner 2007 x 2853, cover 1398 x 2034, either way round) and it is not black.
+- **Fix:** take inner-display shots with `xcrun simctl io <udid> screenshot --display=3` (outer: `--display=1`). Address displays by ID or label, never by position. XCUITest can't fold either: the test pauses on a signal (a file or a local HTTP call), the host folds, then the test resumes.
+- **Check:** each capture's pixel size matches its display (inner 2007 x 2853, outer 1398 x 2034, either way round) and it is not black.
 - **Applies to:** all (simulator)
 
 ### T-03 A tap or fold "succeeded" but nothing happened
-- **Went wrong:** Some simulator automation tools report success for taps that had no effect. Each Duo display has its own touch input, so taps can land on the cover while the inner screen is showing. Device Hub's own fold slider does not reflect folds made by other tools. Elsewhere, input sent before an app was ready was silently ignored, and clicks in a background browser tab landed on a stale frame.
+- **Went wrong:** Some simulator automation tools report success for taps that had no effect. Each Duo display has its own touch input, so taps can land on the outer display while the inner display is showing. Device Hub's own fold slider does not reflect folds made by other tools. Elsewhere, input sent before an app was ready was silently ignored, and clicks in a background browser tab landed on a stale frame.
 - **Spot it:** an automation step whose only evidence is the tool's own "ok".
-- **Fix:** before trusting a driver, tap a button on the inner screen and see it change (a driver whose taps land on the cover is out). Wait for an explicit ready signal before sending input. After every fold, confirm the pose from inside the app (size class, or the reporter's width), not from Device Hub's controls. Bring a browser tab to the front and reload it before acting.
+- **Fix:** before trusting a driver, tap a button on the inner display and see it change (a driver whose taps land on the outer display is out). Wait for an explicit ready signal before sending input. After every fold, confirm the pose from inside the app (size class, or the reporter's width), not from Device Hub's controls. Bring a browser tab to the front and reload it before acting.
 - **Check:** every tap and fold in the run log is followed by a read of the screen, or of the app's reported state, that shows the change.
 - **Applies to:** all (simulator)
 
@@ -42,7 +42,7 @@ Duo simulator facts used below: display ID 1 = cover, 3 = inner; cover screensho
 ### T-06 Checking some screens, or some poses
 - **Went wrong:** A fix in a layer shared by six pages was checked on the one page in the screenshot and shipped broken on another (a native container underneath re-applied the safe area). One screenshot per page let through a bug that the agent's own screenshot showed. A statistic was drawn from page one of a list as if it were the whole set.
 - **Spot it:** a shot list shorter than screens x poses; "checked the main screens".
-- **Fix:** enumerate every screen in the scenario times every required pose (cover portrait, cover landscape, inner portrait, inner landscape, plus the fold mid-task), and capture each, top and bottom of long pages. A change to a shared shell is proven on every screen that uses it.
+- **Fix:** enumerate every screen in the scenario times every required pose (outer portrait, outer landscape, inner portrait, inner landscape, plus the fold mid-task), and capture each, top and bottom of long pages. A change to a shared shell is proven on every screen that uses it.
 - **Check:** the report shows the full matrix with a result in every cell; the screenshot count equals screens x poses x scroll positions.
 - **Applies to:** all
 
@@ -62,7 +62,7 @@ Duo simulator facts used below: display ID 1 = cover, 3 = inner; cover screensho
 
 ### T-09 Claiming what the simulator cannot prove
 - **Went wrong:** Desktop CPU counters were offered as evidence about phone heat. Keyboard behaviour was called green from an emulator. Features the simulator can't drive (a hardware button press, camera, haptics, sound) were reported as working.
-- **Spot it:** claims about feel, haptics, camera, hinge angle, the crease, split view (the Duo simulator doesn't support it), real Safari bar behaviour, or performance.
+- **Spot it:** claims about feel, haptics, camera, hinge angle, the fold, split view (the Duo simulator doesn't support it), real Safari bar behaviour, or performance.
 - **Fix:** keep a "needs a real Duo" list in the report and put every such item on it. A check where the named browser or device wasn't actually exercised is "blocked", not "passed".
 - **Check:** every claim in the report names its tool and device, and unprovable items appear only on the list.
 - **Applies to:** all
@@ -71,11 +71,11 @@ Duo simulator facts used below: display ID 1 = cover, 3 = inner; cover screensho
 - **Went wrong:** A panel tested with 7 items overflowed at 8. A 62-character email address forced sideways scroll. Counters read "1 items". A button that gained text pushed its row over a count at a narrower width.
 - **Spot it:** fixtures full of short, typical values.
 - **Fix:** size containers from the data's extremes, not the sample.
-- **Check:** on the cover in both orientations, feed each screen its maximum item count, its longest real string, a 60+ character string with no spaces, nothing at all, and counters at 0, 1 and 2; no text overlaps a control, count, date or price. Run once more at the largest text size.
+- **Check:** on the outer display in both orientations, feed each screen its maximum item count, its longest real string, a 60+ character string with no spaces, nothing at all, and counters at 0, 1 and 2; no text overlaps a control, count, date or price. Run once more at the largest text size.
 - **Applies to:** all
 
 ### T-11 UI tests that tap fixed points, or wait for one layout's marker
-- **Went wrong:** Older UI tests tapped fixed coordinates sized for a 402 x 874pt phone, so they missed their targets on the Duo's 466 x 678pt cover. Another suite waited for two page markers that a redesign removed, and failed forever while the user was already signed in.
+- **Went wrong:** Older UI tests tapped fixed coordinates sized for a 402 x 874pt phone, so they missed their targets on the Duo's 466 x 678pt outer display. Another suite waited for two page markers that a redesign removed, and failed forever while the user was already signed in.
 - **Spot it:** coordinate taps; waits keyed to text or elements that exist in only one layout.
 - **Fix:** find elements by accessibility identifier or name; wait for a signal that doesn't depend on layout (URL, a state flag, an element by id).
 - **Check:** run the UI tests in all four poses; a test that passes in only one pose is suspect before the app is.
@@ -117,10 +117,10 @@ Duo simulator facts used below: display ID 1 = cover, 3 = inner; cover screensho
 - **Applies to:** all
 
 ### T-17 Reading the page mid-turn, or from an old tab
-- **Went wrong:** Right after a fold or turn, Safari briefly reports sizes and safe areas that are not final (one cover-landscape direction showed 84 px on the left for a moment; settled, it is 0). Separately, Safari tabs left open by earlier test runs kept running and answered the test's questions, and their tab bar shrank the visible height by 48 px.
-- **Spot it:** numbers that change between two readings a few seconds apart; inner-screen heights of 819 or 537 instead of 867 or 585; several open tabs in the simulator's Safari.
+- **Went wrong:** Right after a fold or turn, Safari briefly reports sizes and safe areas that are not final (one outer-landscape direction showed 84 px on the left for a moment; settled, it is 0). Separately, Safari tabs left open by earlier test runs kept running and answered the test's questions, and their tab bar shrank the visible height by 48 px.
+- **Spot it:** numbers that change between two readings a few seconds apart; inner-display heights of 819 or 537 instead of 867 or 585; several open tabs in the simulator's Safari.
 - **Fix:** start every check with a clean Safari (`duo-sim reset-safari`, done by `duo-shot`), send questions only to the page this run loaded, and read only after the page has stopped resizing for 2 seconds.
-- **Check:** two readings 2 seconds apart agree, and the inner screen reads 669 x 867 / 951 x 585 with toolbars shown.
+- **Check:** two readings 2 seconds apart agree, and the inner display reads 669 x 867 / 951 x 585 with toolbars shown.
 - **Applies to:** web / home-screen / wrapper
 
 ### T-18 Folding through every pose for every screen

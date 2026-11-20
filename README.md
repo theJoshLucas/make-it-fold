@@ -4,10 +4,10 @@
 
 make-it-fold is a [Claude Code](https://claude.com/claude-code) plugin. Point it at a website or an
 iPhone/iPad app, type `/duo`, and it makes the app look and work like it was **designed for** Apple's
-foldable iPhone: it fixes what breaks, lays out every screen again for the Duo's two screens, and
+foldable iPhone: it fixes what breaks, lays out every screen again for the Duo's two displays, and
 proves it by folding a simulated Duo back and forth and scoring a picture of every screen.
 
-**Jump to:** [Install](#-install) · [Your first job](#-your-first-job) · [The commands](#%EF%B8%8F-the-commands) · [Safety](#%EF%B8%8F-safety) · [Update or remove](#-update-or-remove)
+**Jump to:** [Install](#-install) · [Your first job](#-your-first-job) · [The commands](#%EF%B8%8F-the-commands) · [Talking about the Duo](#%EF%B8%8F-talking-about-the-duo) · [Safety](#%EF%B8%8F-safety) · [Update or remove](#-update-or-remove)
 
 ---
 
@@ -15,33 +15,35 @@ proves it by folding a simulated Duo back and forth and scoring a picture of eve
 
 Picture a paperback book that is also a phone.
 
-- **Closed**, you use the small screen on the cover: **466 x 678** points, a bit wider and a lot
+- **Closed**, you use the small **outer display**: **466 x 678** points, a bit wider and a lot
   shorter than a normal iPhone.
-- **Open**, the same app, still running, stretches onto the big inner screen: **669 x 951** points,
+- **Open**, the same app, still running, stretches onto the big **inner display**: **669 x 951** points,
   close to a small tablet.
+
+(Those are Apple's names. "Display" is the glass; "screen" in this README means a page of your app.)
 
 Three things trip apps up:
 
-1. 🔄 **The screen changes size while someone is using the app.** Folding doesn't restart anything.
-   If your app only measures the screen once, or rebuilds a form when the size changes, people lose
+1. 🔄 **The app changes size while someone is using it.** Folding doesn't restart anything.
+   If your app only measures the display once, or rebuilds a form when the size changes, people lose
    what they were typing.
-2. 📏 **A bar can run down the side.** The status bar and toolbars sometimes sit in a vertical strip
-   on the left or right, not just at the top and bottom. Buttons that hug a side edge can end up
+2. 📏 **A bar can run down the side.** Apple calls it the **vertical bar**: the status bar, toolbar and
+   tab bar stack down the left or right edge, not just at the top and bottom. Buttons that hug a side edge can end up
    underneath it.
-3. 📷 **Some spots are off limits.** The camera and, when half-open, the fold line are "reserved
-   regions": nothing important should live there.
+3. 📷 **Some spots are off limits.** The cameras and, when the phone is partially open, the fold are
+   "reserved regions": nothing important should live there.
 
 ## 🎨 "It fits" is not the goal
 
 An app can survive all of that and still look wrong: a phone layout stretched across the big
-screen, buttons as wide as a ruler, a form covering everything. Nothing is cut off, and nobody
+inner display, buttons as wide as a ruler, a form covering everything. Nothing is cut off, and nobody
 would believe it was made for a Duo.
 
 So the plugin aims higher than "nothing broke". Each screen should look **Duo-native**:
 
-- 🤏 **On the cover**, the main thing and the main button are there without scrolling, and the bars
-  sit in the side rail where iOS puts them.
-- 📖 **On the inner screen**, the app shows *more*, not the same thing bigger: the list beside the
+- 🤏 **On the outer display**, the main thing and the main button are there without scrolling, and the toolbar
+  and tab bar sit in the vertical bar, where iOS puts them.
+- 📖 **On the inner display**, the app shows *more*, not the same thing bigger: the list beside the
   open item, settings beside the page you picked, a form as a panel instead of a full-width tray.
 - 🎭 **It is still your app.** Same colors, fonts, wording and features. An ordinary iPhone sees no
   difference at all.
@@ -54,13 +56,14 @@ When you type `/duo` inside an app's folder, Claude:
 2. 🍎 **Downloads Apple's current Duo pages** and reads Apple's design rules fresh, every time, so it
    is never working from an old copy. It also reads its own notebook of lessons from earlier jobs.
 3. 🔍 **Scans the code** for patterns that usually break on a Duo. These are suspects, not convictions.
-4. 📸 **Takes "before" pictures of every screen**, folding the simulator into every position: cover
-   upright, cover sideways (both ways), inner upright and inner sideways. It asks whether you also want
-   the two half-open positions (book and laptop: they show what sits on the crease, and take a few more
-   minutes). It uses your own text size and settings, waits for each screen to stop moving, and retakes
+4. 📸 **Takes "before" pictures of every screen**, folding the simulator into every pose: the outer
+   display in portrait and in landscape (both ways round), and the inner display in portrait and in
+   landscape. It asks whether you also want the three partially open poses (book, laptop and tent: book
+   and laptop show what sits on the fold, tent shows the outer display with the phone stood on its
+   edges; they take a few more minutes). It uses your own text size and settings, waits for each screen to stop moving, and retakes
    any picture that comes out blank.
-5. 🧐 **A separate judge scores each screen for design**, on the cover and on the inner screen, with
-   eight plain questions (does it use the room? does it show more? is the form sized for the screen?)
+5. 🧐 **A separate judge scores each screen for design**, on the outer display and on the inner display, with
+   eight plain questions (does it use the room? does it show more? is the form sized for the display?)
    and a measured "biggest empty patch" on every picture. The judge sees only the pictures, never the
    code or the plan, so the Claude that built the layout never grades its own work. Each screen gets a
    verdict: **native**, **fits only** or **broken**.
@@ -189,7 +192,7 @@ only" and lists what was left unproven.
 3. Ready for the real thing? Type `/duo`.
 
 The first run on an app takes a while: Claude starts your app on your own computer, folds the
-simulator through every position, and reads every screenshot. You'll see the **Duo Kit**
+simulator through every pose, and reads every screenshot. You'll see the **Duo Kit**
 simulator open and move by itself. That's normal.
 
 ## 🕹️ The commands
@@ -199,15 +202,55 @@ simulator open and move by itself. That's normal.
 | `/duo` | The whole job: make this app Duo-native, and prove it | Yes: fixes and new layouts |
 | `/duo fit` | Only fix what breaks. No layout changes | Yes, only what's broken |
 | `/duo-new` | Start a brand-new app designed for the Duo from the first screen | It writes the new app |
-| `/duo-shot` | A photo shoot of every screen in every fold position, each scored for fit and design | No |
+| `/duo-shot` | A photo shoot of every screen in every pose, each scored for fit and design | No |
 | `/duo-setup` | Gets your Mac ready, or tells you what's missing | No |
 
 Results land in your app's `duo/shots/` folder, one dated folder per run: full-size screenshots
 (the exact pixel sizes the App Store asks for), small copies for a quick look, a `contact.html`
-page showing every position at a glance, a `review.md` scorecard, and after a fix a `compare.html`
+page showing every pose at a glance, a `review.md` scorecard, and after a fix a `compare.html`
 page with before and after side by side. Websites also get `phone-before` and `phone-after` folders
 from the ordinary-iPhone check. Add `duo/shots/` to your `.gitignore` if
 you don't want the pictures saved with your code.
+
+## 🗣️ Talking about the Duo
+
+The plugin uses Apple's own names, and Claude reads yours through them. Using the same words gets
+you the right thing the first time.
+
+| Say | It means |
+|---|---|
+| **outer display** | The small glass on the outside, used when the phone is closed. (Samsung calls its version a "cover screen"; Claude knows that means the same thing.) |
+| **inner display** | The big glass that folds. |
+| **portrait / landscape** | Which way the phone is turned. |
+| **closed / partially open / open** | The three fold states. They are the buttons under the Duo in Xcode's simulator. |
+| **the fold** | The strip of glass over the hinge. It only matters when the phone is partially open. |
+| **vertical bar** | The strip down one side where iOS stacks the Dynamic Island, status bar, toolbar and tab bar. It is there on the outer display and on the inner display in landscape; the inner display in portrait keeps bars at the top and bottom. |
+| **overflow menu** | The "…" button where toolbar buttons go when they don't fit. |
+
+Apple's six poses, the ones Claude photographs:
+
+| Pose | Display | The plugin's picture |
+|---|---|---|
+| **closed** | outer, portrait or landscape | `outer-portrait`, `outer-landscape`, `outer-landscape-flipped` |
+| **tent** | outer, landscape, phone part open and stood on its edges | `tent` |
+| **open wide** | inner, landscape | `inner-landscape` |
+| **book** | inner, landscape, partially open (the fold runs top to bottom) | `book` |
+| **open tall** | inner, portrait | `inner-portrait` |
+| **laptop** | inner, portrait, partially open (the fold runs left to right) | `laptop` |
+
+Three words that get the wrong thing:
+
+- **"Screen"** means two things. Say **display** for the glass and **screen** for a page of your app:
+  "the history screen on the inner display."
+- **"Sidebar"** to Apple is the list column on the left of a two-column layout (the list of notes in
+  Notes). The strip of buttons down the side is the **vertical bar**.
+- **"Split view"** is one app showing two panes, like an inbox beside an email. **"Split View
+  multitasking"** is two different apps sharing the inner display.
+
+A request that lands the first time names the app, the screen, the display and pose, and what you
+see: *"The history screen, inner display open wide: the list is one skinny column with empty space on
+both sides. Keep the colors."* Say what you see rather than the fix ("the right half is empty", not
+"make it wider"), and name a pose only if you care about just that one.
 
 ## 🧭 What kinds of apps
 
@@ -245,7 +288,7 @@ Three honest limits on that:
   the code and the honesty of the report. A layout nobody has seen is reported as "built, not
   seen", never "native".
 - What "native" looks like was checked separately, by hand, on the Duo simulator: the web and
-  native practice answers were photographed in all 7 positions with a task in progress, before
+  native practice answers were photographed in all 7 poses the plugin had then (tent came later) with a task in progress, before
   and after, and judged from the pictures.
 - The Expo practice app was graded on its code only. It has not been built and run on the
   simulator yet.
@@ -253,7 +296,7 @@ Three honest limits on that:
 ## 🧪 What it can't prove
 
 The simulator is very good, but it isn't a phone in your hand. It can't tell you how the fold
-feels, how the camera behaves, how fast it runs, or what the crease looks like. Split view (two
+feels, how the camera behaves, how fast it runs, or what the fold looks like. Split View multitasking (two
 apps side by side) also only works on a real Duo. The report always lists what still needs a real
 phone.
 
@@ -261,7 +304,7 @@ Everything here was measured on the iPhone Duo **simulator** (Xcode 27.2, iOS 27
 own checks have not been run against a real Duo yet.
 
 📏 **Got a real Duo?** Open [thejoshlucas.github.io/make-it-fold](https://thejoshlucas.github.io/make-it-fold/)
-in Safari, then fold, unfold and turn the phone. The page checks each position against the simulator's
+in Safari, then fold, unfold and turn the phone. The page checks each pose against the simulator's
 numbers. If anything is different, tap **Share results** and
 [post them in an issue](https://github.com/theJoshLucas/make-it-fold/issues), so the plugin can be corrected.
 

@@ -1,7 +1,7 @@
 # Layout traps: native SwiftUI / UIKit, iPad and universal apps, Expo / React Native
 
 Load for any job with native screens. Ordered by how often each one bites a Duo job, most first.
-Duo sizes: cover 466 x 678pt (compact width), inner 669 x 951pt (regular width and height). The Duo reports itself
+Duo sizes: outer display 466 x 678pt (compact width), inner 669 x 951pt (regular width and height). The Duo reports itself
 as an iPhone. A system bar can sit down one side, and the camera and fold have reserved regions.
 Also read W-08 and W-11 in `layout-web.md`; they apply to native apps too.
 
@@ -29,14 +29,14 @@ Also read W-08 and W-11 in `layout-web.md`; they apply to native apps too.
 ### N-04 The iPad layout is chosen by device type, so the Duo never shows it
 - **Went wrong:** (From research, not yet from a job.) Code that picks the big layout with `userInterfaceIdiom == .pad` never shows it on the Duo, which reports itself as an iPhone even at 669 x 951pt unfolded. An iPad-only app does not run on iPhone at all until iPhone is added as a target.
 - **Spot it:** grep for `userInterfaceIdiom`, `UIDevice.current.model`, `isPad`, and (React Native / Expo) `Platform.isPad` or `isTablet` deciding layout.
-- **Fix:** choose layout from the horizontal size class or the available width (the inner screen is regular / regular). Keep idiom checks only for real capability differences.
+- **Fix:** choose layout from the horizontal size class or the available width (the inner display is regular / regular). Keep idiom checks only for real capability differences.
 - **Check:** on the Duo simulator, unfolded shows the wide layout and folded shows the compact one, switching live without a relaunch.
 - **Applies to:** iPad / native / Expo
 
 ### N-05 Hardcoded insets, or a reserved band honoured where nothing uses it
 - **Went wrong:** A window reserved a 52pt inset across its full width for chrome that only filled the leading 142pt, which left a dead band above every page for months while agents told the owner the space was "reserved". A root view that ignored the safe area drew its first lines under the title bar.
 - **Spot it:** hardcoded edge padding (`padding(.top, 44)` and similar); `.ignoresSafeArea()` on content rather than backgrounds; one inset value reused for all four edges.
-- **Fix:** read the safe-area insets for every edge (the Duo's side bar makes left or right non-zero). Measure what actually occupies a reserved band, and let content use the part that is clear.
+- **Fix:** read the safe-area insets for every edge (the Duo's vertical bar makes left or right non-zero). Measure what actually occupies a reserved band, and let content use the part that is clear.
 - **Check:** in every pose, screenshot and log `safeAreaInsets` for all four edges: no text or control sits under the bar or camera, and there is no empty band where nothing is drawn.
 - **Applies to:** native / iPad / Expo
 
@@ -79,11 +79,11 @@ Also read W-08 and W-11 in `layout-web.md`; they apply to native apps too.
 - **Went wrong:** Layout code that set frames, ideal / max sizes or min sizes from view updates and timers made a window resize itself after launch, and once recursed until the process aborted (only with real content; blank test views passed). A pane width saved on a bigger display was restored far below its minimum on a smaller one and drew as an empty column.
 - **Spot it:** frames or min / max sizes set from updates, timers or resize observers; saved split-view column widths or scroll positions restored without clamping.
 - **Fix:** content declares one minimum on the root and lets the system size it. Clamp any saved width or position to the current screen when restoring. Never save a value that can fall below the readable minimum.
-- **Check:** quit on the inner screen with a wide pane and reopen folded, then the reverse: every pane is readable and every handle reachable. Run with real content through a few background refreshes.
+- **Check:** quit on the inner display with a wide pane and reopen folded, then the reverse: every pane is readable and every handle reachable. Run with real content through a few background refreshes.
 - **Applies to:** native / iPad
 
 ### N-12 A measured width fed back into the thing it measures
-- **Went wrong:** A chart measured its card's width, stored it, and drew itself at that fixed width. Unfolded, the card grew and the chart followed. Folded again, the fixed-width chart held the card at 951 points, so the measurement never came down and the whole page ran off the side of the cover.
+- **Went wrong:** A chart measured its card's width, stored it, and drew itself at that fixed width. Unfolded, the card grew and the chart followed. Folded again, the fixed-width chart held the card at 951 points, so the measurement never came down and the whole page ran off the side of the outer display.
 - **Spot it:** a stored width or height (from a geometry reader or a layout callback) used as a fixed frame for content inside the same container that was measured.
 - **Fix:** let the container take its size from its parent (a flexible frame), and draw the measured content in an overlay or background so it cannot push the container wider.
 - **Check:** open the screen unfolded, fold, and compare with the same screen opened folded: identical. Do it in both directions.

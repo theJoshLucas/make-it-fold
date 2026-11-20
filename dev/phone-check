@@ -1,7 +1,7 @@
 #!/bin/bash
 # The normal-phone check, proven on the practice app (no simulator, no Claude usage, about 15 seconds).
 # The stretched-phone Woodshed against its fixed copy: every phone picture the same, the desktop window
-# changed. A copy whose wide rule also catches phones held sideways: those pictures must come out CHANGED.
+# changed. A copy whose wide rule also catches phones in landscape: those pictures must come out CHANGED.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -35,7 +35,7 @@ fi
 "$P" compare "$before" "$wrong" > "$OUT/wrong-compare.txt" 2>&1; we=$?
 changed=$(grep -c '^  CHANGED' "$OUT/wrong-compare.txt")
 if [ $we -ne 1 ] || [ "$changed" -ne 6 ] || grep -qE '^  CHANGED .* · phone(-max)?:' "$OUT/wrong-compare.txt"; then
-  echo "phone-check: the wrong copy should change exactly the 6 sideways phone pictures (got $changed, exit $we):"
+  echo "phone-check: the wrong copy should change exactly the 6 landscape phone pictures (got $changed, exit $we):"
   cat "$OUT/wrong-compare.txt"; fails=1
 fi
 [ $fails -eq 0 ] && echo "phone check passed" || exit 1

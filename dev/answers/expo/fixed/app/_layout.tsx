@@ -3,7 +3,7 @@ import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
-// The system draws the tab bar, so it follows the Duo's rail on its own.
+// The system draws the tab bar, so it follows the Duo's vertical bar on its own.
 export default function RootLayout() {
   return (
     <SafeAreaProvider>

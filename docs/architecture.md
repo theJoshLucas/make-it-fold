@@ -7,7 +7,7 @@ A Claude Code plugin, published from this repo as its own marketplace.
 - `plugins/make-it-fold/`: everything users install.
   - `skills/make-it-fold/SKILL.md`: the job (setup and fresh knowledge, scan, route, before, design review
     and layout plan, build, after with up to three fix rounds and then one polish round, report, learn). Two bars: it fits (the floor) and it is native (the goal).
-    `references/*.md` are read on demand only; `references/design.md` (the scorecard and the layout
+    `references/*.md` are read on demand only (`references/words.md` is Apple's vocabulary and how to read a person's words through it; SKILL.md carries a five-line summary); `references/design.md` (the scorecard and the layout
     patterns) and `traps/design.md` are read by every job except a fit-only one. `traps/*.md` hold the
     trap notebook (no private sources).
   - `commands/duo.md` (native by default, `fit` for fit-only, `continue` to resume on Opus), `duo-new.md`,
@@ -25,7 +25,9 @@ A Claude Code plugin, published from this repo as its own marketplace.
     settings and one sentence about the app; it calls it with model "opus" when `duo-models` says Fable
     is unavailable or was not chosen. Plugin agents are invoked as `make-it-fold:<name>`.
   - `scripts/`: `duo-setup` (checks the Mac, installs the pinned duoctl, creates "Duo Kit"),
-    `duo-sim` (poses via duoctl, verified from duoctl's readback; refuses a duoctl copy that is not
+    `duo-sim` (poses via duoctl, verified from duoctl's readback; poses carry Apple's names, eight of them, tent
+    added 2026-11-20 as a hinge angle of 75 from closed; duoctl's own word for the outer display, "cover",
+    is changed to "outer" where duo-sim reads it, so nothing past duo-sim sees it; refuses a duoctl copy that is not
     exactly the pinned commit; two locks, see below),
     `duo-scan` (static suspects + surfaces + which recipes to read),
     `duo-shot` (web: proxies the app through `duo-listen`, injects `duo-reporter.js`, measures in every pose;
@@ -41,7 +43,7 @@ A Claude Code plugin, published from this repo as its own marketplace.
     `duo-models` (which model each part of the job runs on; see below).
   - `tools/duoctl.pin`: the reviewed duoctl commit. `/duo-setup` clones exactly that commit into
     `~/.cache/make-it-fold/duoctl/<sha>`.
-  - `probe/index.html`: the Duo Screen Check page. Recognises the five positions from the page's own size,
+  - `probe/index.html`: the Duo Display Check page. Recognises the five positions from the page's own size,
     compares each with the simulator numbers in `references/facts.md` (copied into the page; update both
     together), and posts to `/report` only when its address is localhost. Published on its own to GitHub
     Pages by `.github/workflows/pages.yml` (only this folder goes on the site).
@@ -73,14 +75,14 @@ builder's quick look at its own polish fixes before the real pictures, never pro
 `duo-shot` counts **issues** (something is cut off, covered, lost or reloaded) and its exit code follows
 them. It also prints **design notes** from `duo-reporter.js` (one column on a wide screen, controls wider
 than 560 px, lines past about 95 characters, under 60% of the width used, touch targets under 44 px, and
-type that is bigger on the inner screen than on the cover). Notes never change the exit code: they are
+type that is bigger on the inner display than on the outer display). Notes never change the exit code: they are
 prompts. Design is judged by whoever runs the job, from the pictures, in the `review.md` scorecard that
-every run writes (one block per screen, a row for the cover and one for the inner screen). The duo-judge agent
+every run writes (one block per screen, a row for the outer display and one for the inner display). The duo-judge agent
 fills it in, never the agent that built the layouts. Native runs have no measured notes from inside the app.
 
 Every picture, web and native, is also measured from a 160-pixel copy made by `sips` (no extra libraries):
 the **biggest empty patch** (the largest rectangle of the most common color, as a share of the picture; over 25%
-on the inner screen is flagged in `review.md`) and **blank** (one color on 99% of it, an issue). Native runs take
+on the inner display is flagged in `review.md`) and **blank** (one color on 99% of it, an issue). Native runs take
 captures until two in a row differ on under 3% of their pixels (at most 9 captures, 0.6 s apart), so a sheet still
 sliding in is not the picture; with `--order pose` a blank or still-moving picture is retaken from a fresh launch,
 twice. A scenario's `defaults` are written with `simctl spawn ... defaults write` before the first launch. The last

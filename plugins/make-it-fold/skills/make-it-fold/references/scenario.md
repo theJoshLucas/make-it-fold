@@ -12,7 +12,7 @@ Write it once, on the first Duo job, and reuse it. Short is fine.
     "/new": [
       {"name": "form half filled"},
       {"type": ["#title", "Half-typed note"]},
-      {"pose": "cover-portrait"},
+      {"pose": "outer-portrait"},
       {"expect_value": ["#title", "Half-typed note"]},
       {"pose": "inner-landscape"},
       {"expect_visible": "button[type=submit]"}
@@ -24,10 +24,10 @@ Steps: `type` [selector, text], `tap` selector, `pose` name (folds, and takes a 
 seconds, `expect_visible` selector (on screen and not covered), `expect_value` [selector, text],
 `expect_text` text, and `name` text: it names the state the following pictures show ("item open",
 "new-entry form"), and each named state gets its own block in the design scorecard. Reach every
-state a person can see (an open item, each form, a menu) and name it, on the cover and unfolded.
+state a person can see (an open item, each form, a menu) and name it, on the outer display and unfolded.
 The normal-phone check (`duo-shot phone`) reads the same file: it does the `tap`, `type`, `wait` and
 `name` steps and photographs each named state at ordinary iPhone sizes, skipping `pose` and the
-`expect_*` checks, which belong to the fold positions.
+`expect_*` checks, which belong to the poses.
 Keep app-specific notes for the next job in `duo/notes.md`.
 
 ## native screens (so every screen is photographed, not just the first)

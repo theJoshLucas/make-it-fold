@@ -96,7 +96,7 @@ graders:
     path: GigLog/NoteField.swift
   pattern: maxLength\s*\{\s*uiView\.resignFirstResponder
   match: not_contains
-- name: N9-inner-screen-shows-list-and-gig
+- name: N9-inner-display-shows-list-and-gig
   type: regex
   target:
     source: file

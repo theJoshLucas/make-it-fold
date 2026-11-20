@@ -20,7 +20,7 @@
   },
   "project": {
     "name": "make-it-fold",
-    "purpose": "A Claude Code plugin that makes websites and iPhone/iPad apps look and work like they were designed for Apple's foldable iPhone Duo: fix what breaks, lay out every screen for both screens, prove it with scored pictures of every fold position on the Duo simulator."
+    "purpose": "A Claude Code plugin that makes websites and iPhone/iPad apps look and work like they were designed for Apple's foldable iPhone Duo: fix what breaks, lay out every screen for both displays, prove it with scored pictures of every fold position on the Duo simulator."
   },
   "publish": {
     "mode": "direct"

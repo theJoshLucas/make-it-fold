@@ -45,8 +45,8 @@ input, textarea { width: 100%; font: inherit; font-size: 17px; padding: 12px; bo
 .sheet .row .primary { flex: 1; }
 [hidden] { display: none !important; }
 
-/* The Duo's inner screen (669 x 867 or 951 x 585 in Safari): list and session side by side.
-   Wide AND tall, so a phone turned sideways (wide but short) keeps the phone layout.
+/* The Duo's inner display (669 x 867 or 951 x 585 in Safari): list and session side by side.
+   Wide AND tall, so a phone in landscape (wide but short) keeps the phone layout.
    Everything above is the phone layout and is unchanged. */
 .empty { display: none; }
 @media (min-width: 620px) and (min-height: 480px) {
@@ -64,8 +64,8 @@ input, textarea { width: 100%; font: inherit; font-size: 17px; padding: 12px; bo
   .sheet { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); width: min(480px, calc(100% - 48px));
            border-radius: 18px; padding: 20px; max-height: calc(100dvh - 48px); }
 }
-/* Sideways (951 px): the form sits on the trailing half, so the list stays in view and, with the
-   phone half-open like a book, nothing sits on the fold down the middle. */
+/* Landscape (951 px): the form sits on the trailing half, so the list stays in view and, with the
+   phone partially open like a book, nothing sits on the fold down the middle. */
 @media (min-width: 900px) and (min-height: 480px) {
   .sheet { left: auto; right: 20px; top: 50%; transform: translateY(-50%); width: min(430px, calc(50% - 40px)); }
   .scrim { background: rgba(20, 33, 61, .25); }

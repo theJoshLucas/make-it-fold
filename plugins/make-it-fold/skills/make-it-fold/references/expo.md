@@ -19,9 +19,9 @@ changelog). The summary below was true on 2026-11-09; the live page wins.
 
 ## what to fix
 - **Navigation: let iOS draw it.** Expo Router's `Stack` and `NativeTabs` use the system's bars, which
-  move into the Duo's vertical rail by themselves. **Custom JavaScript headers or tab bars do not**:
-  they stay where they were drawn and collide with the rail. Move to the native navigators
-  (`NativeTabs`, `Stack`): that is the fix. Never draw your own side rail in JavaScript. Only if a
+  move into the Duo's vertical bar by themselves. **Custom JavaScript headers or tab bars do not**:
+  they stay where they were drawn and collide with the vertical bar. Move to the native navigators
+  (`NativeTabs`, `Stack`): that is the fix. Never draw your own vertical bar in JavaScript. Only if a
   custom bar does something the system's cannot, keep it, pad it with the safe area on all four
   sides and list the move as open. When the custom shell goes, carry its look across: the app's
   background color on the screens (or the layout's content style) and its accent as the tab tint.
@@ -37,6 +37,6 @@ changelog). The summary below was true on 2026-11-09; the live page wins.
   ordinary iPhones too) and say so in the report.
 - **Duo-native layout** (`design.md` has the pattern per screen): Expo Router's `<SplitView>` for
   list-plus-detail and settings, `<ArrangementView>` (SDK 58) for content-plus-controls, switched by
-  `useWindowDimensions().width` (about 600 and up is the inner screen). One screen component and one
+  `useWindowDimensions().width` (about 600 and up is the inner display). One screen component and one
   state, two arrangements. Hold single columns and buttons to about 560 wide. Do not scale fonts
   with the window.

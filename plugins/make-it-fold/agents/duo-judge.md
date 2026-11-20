@@ -19,18 +19,18 @@ plan, not earlier reports, not other screens' pictures.
    becomes"), then your screen's block in `review.md` (the `## <screen>` heading and its picture list).
 2. Open every picture in that block at full size with the Read tool, one by one. Look at each like
    someone who just unfolded the phone: what is empty, what is cramped, what looks like a phone layout
-   placed on a bigger screen. If you need a picture again, open it again: never answer from memory.
-3. Answer the eight questions for the cover and for the inner screen (yes, no, minor, n-a or unsure),
+   placed on a bigger display. If you need a picture again, open it again: never answer from memory.
+3. Answer the eight questions for the outer display and for the inner display (yes, no, minor, n-a or unsure),
    each only from the pictures the scorecard says it is about. A no is a problem a person would notice
-   as "not made for this screen"; a minor is polish (the scorecard says which is which). Doubt between no
+   as "not made for this display"; a minor is polish (the scorecard says which is which). Doubt between no
    and minor is a no. "unsure" is for a picture you opened and still cannot read clearly, and for
    questions 1 and 2 when the screen's main content is an empty state (a "No items" message, a blank
    list or a blank day): say "take the pictures again with realistic data". One empty section on an
    otherwise full screen is not that: judge the screen.
-   `review.md` gives the biggest empty patch per picture: on the inner screen, over 25% is a no on
+   `review.md` gives the biggest empty patch per picture: on the inner display, over 25% is a no on
    question 1 when the layout leaves it empty, not when it is only the space after the last item the
    app has to show (say which).
-4. Verdict: **native** if every answer on both screens is yes, minor or n-a; **fits only** if nothing is
+4. Verdict: **native** if every answer on both displays is yes, minor or n-a; **fits only** if nothing is
    broken but any answer is a no; **broken** if something the person needs is cut off, covered or
    unreadable; **unsure** if any answer is unsure (the builder then asks again; it is never a pass).
 5. Name the three worst things you see, each with the picture it is in and where in the picture
@@ -49,7 +49,7 @@ Every no and every finding must be something you can point at in a picture you o
    table rows as your answer:
 
 ```
-| <screen> | Cover | yes | n-a | ... | ... | ... | ... | ... | ... | native / fits only / broken / unsure |
+| <screen> | Outer | yes | n-a | ... | ... | ... | ... | ... | ... | native / fits only / broken / unsure |
 | <screen> | Inner | no | ... | ... | ... | ... | ... | ... | ... | (the same verdict) |
 
 ## <screen>

@@ -1,5 +1,43 @@
 # Current status
 
+## 2026-11-20: Apple's words everywhere, and the tent pose
+- Why: the plugin used its own words for the Duo ("cover", "side rail", "half-open", "crease", "upright",
+  "sideways") and "screen" for both the glass and a page of the app. Apple's pages (fetched fresh the same day)
+  say outer display and inner display, the vertical bar, partially open, the fold, portrait and landscape, and
+  name six poses: closed, tent, open wide, book, open tall, laptop. The plugin had no tent picture.
+- What changed:
+  - Pose names: `cover-portrait`, `cover-landscape`, `cover-landscape-flipped` are now `outer-portrait`,
+    `outer-landscape`, `outer-landscape-flipped`. No old name is accepted (no alias left behind): a scenario or a
+    saved command with a `cover-*` pose now stops with duo-sim's list of pose names.
+  - New pose `tent` (in `--poses all`, beside book and laptop): close, turn to landscape, open the hinge to 75
+    degrees. From closed the outer display stays on at every angle tried from 30 to 105 degrees, and the
+    simulator turns it to landscape-flipped as it opens. Safari in tent: 594 x 368, safe areas 0 (the same as
+    outer landscape). Scorecard: tent pictures count as outer-display pictures (question 3); question 5 (the fold)
+    is judged from book and laptop only.
+  - `duo-sim` changes duoctl's readback word for the outer display ("cover") to "outer"; nothing past duo-sim
+    sees duoctl's word. The run report says "outer display" / "inner display".
+  - Scorecard rows are `| Outer |` and `| Inner |` (were `| Cover |`); the column is "Display" (was "Screen size").
+  - Normal-phone picture names: `phone-landscape`, `phone-max-landscape` (were `-sideways`). A compare between a
+    run from before this change and one after it will not pair those pictures; take both runs on one version.
+  - New `references/words.md` (Apple's terms, the six poses with the plugin's picture names, and how to read a
+    person's words: "cover" is the outer display, "sidebar" is usually Apple's list pane, "split view" is not Split
+    View multitasking). SKILL.md has a five-line summary. README has a "Talking about the Duo" section.
+  - The probe page is now titled "Duo Display Check" (its address is unchanged).
+- Proven (code ran and the plugin worked, on the simulator): `dev/check` green. All 8 poses reached on the Duo
+  simulator with Safari in front, tent twice (outer display, landscape-flipped, hinge 73 degrees each time).
+  `duo-shot web --poses all`: `practice/web` reports 42 issues across all 8 pictures (tent finds the same 760 px
+  song table cut off at 594 px as outer landscape); `dev/answers/web/fixed` reports 0 issues in all 8, tent at
+  594 x 368 with safe areas 0. Its `review.md` lists all 8 pictures and the new "Display" column.
+- Tried wrong: `duo-sim pose cover-portrait` and a misspelled pose stop with the list of pose names (exit 1);
+  `duo-shot web|native --poses cover-portrait` (or `half-open`) stops before making a run folder (exit 2). A
+  practice server that could not start because another program held its port gave "never reported in" (exit 2),
+  as before.
+- Not covered: native apps in tent (not shot; an app locked to portrait on the outer display cannot reach tent,
+  the same as outer landscape), and a real Duo.
+- NOT yet run: `dev/judge-check` (required after a scorecard or judge change; about 12 minutes and $1.50) and
+  an exam case (about $1.40 to $2.00). Both wait for the maintainer's yes on the spending. The version stays
+  0.2.3 until they pass, so existing installs do not get this yet.
+
 ## 2026-11-19 (night): v0.2.3, Apple's edited Duo pages folded into the native recipe, published
 - Why: `duo-docs` reported 5 of Apple's Duo topic pages changed since the recipes were written on 2026-11-18
   (both arrangement views, reserved regions, the vertical bar edge, the hinge), plus both core pages. The

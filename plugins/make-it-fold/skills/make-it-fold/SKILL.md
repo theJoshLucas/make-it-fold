@@ -1,6 +1,6 @@
 ---
 name: make-it-fold
-description: "Make an app look and work like it was designed for Apple's foldable iPhone Duo. Converts an iPhone, iPad or web app so every screen is laid out for the small cover screen and the big inner screen (keeping the app's own look), or starts a new Duo app from scratch. Fixes what breaks, redesigns the layouts, and proves it with pictures of every screen in every fold position on the Duo simulator, each scored for design. Reads Apple's current Duo documentation on every run. Use whenever someone says optimize / convert / redesign / prepare / fix / test this for the iPhone Duo, the foldable iPhone, folding, the cover screen or the inner screen, asks whether an app works or looks right on the Duo, or wants a new app built for it. Handles websites, home-screen web apps, web views in native apps, SwiftUI/UIKit, iPad and universal apps, Expo/React Native, and guided routes for Flutter, Capacitor, games and Mac ports."
+description: "Make an app look and work like it was designed for Apple's foldable iPhone Duo. Converts an iPhone, iPad or web app so every screen is laid out for the small outer display and the big inner display (keeping the app's own look), or starts a new Duo app from scratch. Fixes what breaks, redesigns the layouts, and proves it with pictures of every screen in every pose on the Duo simulator, each scored for design. Reads Apple's current Duo documentation on every run. Use whenever someone says optimize / convert / redesign / prepare / fix / test this for the iPhone Duo, the foldable iPhone, folding, the outer display (or 'cover screen') or the inner display, a pose (book, laptop, tent), asks whether an app works or looks right on the Duo, or wants a new app built for it. Handles websites, home-screen web apps, web views in native apps, SwiftUI/UIKit, iPad and universal apps, Expo/React Native, and guided routes for Flutter, Capacitor, games and Mac ports."
 argument-hint: "[folder or URL] [fit] [continue]"
 model: opus
 effort: high
@@ -8,19 +8,25 @@ effort: high
 
 # make-it-fold
 
-The iPhone Duo folds. Folded, the app runs on a small **cover screen** (466 x 678 points).
-Unfolded, the same app, still running, resizes to a big **inner screen** (669 x 951 points).
-Bars can sit in a **vertical rail** down one side, and the cameras and the fold line are
+The iPhone Duo folds. Folded, the app runs on a small **outer display** (466 x 678 points).
+Unfolded, the same app, still running, resizes to a big **inner display** (669 x 951 points).
+Toolbars and tab bars can sit in the **vertical bar** down one side, and the cameras and the fold are
 **reserved regions** content must not need.
+
+**Words.** Use Apple's, and read the person's through them (`references/words.md` has the full list).
+A **display** is the glass (outer, inner); a **screen** is a page of the app. Apple's poses: closed,
+tent, open wide, book, open tall, laptop; the fold states are closed, partially open and open. If the
+person says "cover" they mean the outer display; "sidebar" to Apple is the list column of a split view,
+not the vertical bar; "split view" is one app's two panes, "Split View multitasking" is two apps.
 
 Two bars to clear, in this order:
 - **It fits (the floor).** Nothing is cut off, covered or lost in any pose, and folding in the
   middle of a task loses nothing.
-- **It is native (the goal).** Each screen is laid out for the screen it is on: the cover gets a
-  layout built for wide-and-short, the inner screen shows more of the app at once. Someone opening
+- **It is native (the goal).** Each screen is laid out for the display it is on: the outer display gets a
+  layout built for wide-and-short, the inner display shows more of the app at once. Someone opening
   it on a Duo believes it was designed for a Duo.
 
-**"It fits" is not done.** A phone layout stretched across the inner screen passes every fit check
+**"It fits" is not done.** A phone layout stretched across the inner display passes every fit check
 and is the exact failure this plugin exists to prevent.
 
 ## Which job
@@ -69,7 +75,7 @@ the pictures. **You never score your own layouts** (trap D-15).
 **1. Scan.** `${CLAUDE_PLUGIN_ROOT}/scripts/duo-scan <app folder>` names the app's surfaces and
 lists three things. **Must-do** items are Apple's requirements that no picture can show: always do
 them. **Suspects** are not bugs yet: you fix one if a check fails or the code plainly does what
-the trap describes. **Design hints** say where the inner screen will get a stretched phone.
+the trap describes. **Design hints** say where the inner display will get a stretched phone.
 
 **2. Read the route.** `references/routes.md` (short), then exactly the recipe and trap files the
 scan named, plus `references/facts.md`, `references/design.md` and (not for a fit-only job)
@@ -82,20 +88,22 @@ and full states. Put them in `duo/scenario.json` (`references/scenario.md`) with
 fold-in-the-middle-of-a-task step. **Shoot what the owner sees** (trap T-20): find out, or ask, the
 owner's text size and any set-up the app remembers (who is signed in, a first-run question already
 answered), put them in the scenario's `defaults` (native) or the app's own state (web), and seed a
-realistic amount of made-up data. **Ask the person once** whether to also photograph the two
-half-open positions, book (unfolded sideways, bent like a book) and laptop (unfolded upright, bent like
-a laptop): they are the only pictures that show what sits on the crease, and they add about two folds
-plus a few seconds a screen (say the minutes for this app). Write the answer in `duo/notes.md` for
+realistic amount of made-up data. **Ask the person once** whether to also photograph the three
+partially open poses: book (inner display in landscape, bent like a book), laptop (inner display in
+portrait, bent like a laptop) and tent (opened partway from closed and stood on its edges, outer display
+in landscape). Book and laptop are the only pictures that show what sits on the fold; tent shows the app
+keeps its outer-display layout with the hinge part open. They add about three folds plus a few seconds a
+screen (say the minutes for this app). Write the answer in `duo/notes.md` for
 next time; never skip them without asking. Run the app locally, never against live data. While the code
 is still untouched, take the normal-phone "before" pictures yourself (seconds, no Duo simulator): web,
 `duo-shot phone --url <local url> --scenario duo/scenario.json --label phone-before`; native, every screen
-upright on an iPhone 17 Pro simulator on iOS 27 (status bar fixed first with `xcrun simctl status_bar <udid>
+in portrait on an iPhone 17 Pro simulator on iOS 27 (status bar fixed first with `xcrun simctl status_bar <udid>
 override --time 9:41 --batteryState charged --batteryLevel 100`), saved with `xcrun simctl io <udid> screenshot`.
 Already changed the code? Take them from a `git worktree` of the starting commit. Then hand the
 duo-shooter agent (`make-it-fold:duo-shooter`) the exact command:
 `duo-shot web --url <local url> --scenario duo/scenario.json --label before` or
 `duo-shot native --bundle <id> --app <path> --scenario duo/scenario.json --label before`
-with full paths and `--poses` set to the positions agreed above. It runs the command in the background
+with full paths and `--poses` set to the poses agreed above. It runs the command in the background
 and waits for it to finish. Its answer is duo-shot's `RESULT` line: every name under `blank` or `moving` gets
 looked at before anything is judged. Run nothing else on the simulator while it shoots.
 
@@ -107,14 +115,14 @@ folder, the one screen to judge (its `## ` heading in `review.md`), the path to
 `${CLAUDE_SKILL_DIR}/references/design.md`, the owner's settings, one sentence on what the app is
 for, and any design choices the owner made before this job, quoted from the app's own design rules as
 they were before you started (never something this job decided). Never your plan, your code or your
-opinion of the screens. Each call writes `judge/<screen>.md`: the eight answers for the cover and the
-inner screen, a verdict (**native**, **fits only**, **broken** or **unsure**) and the three worst things.
+opinion of the screens. Each call writes `judge/<screen>.md`: the eight answers for the outer display and the
+inner display, a verdict (**native**, **fits only**, **broken** or **unsure**) and the three worst things.
 Then `duo-shot verdicts <run folder>` gathers them into `judge.md` and names any screen with no verdict
 or an **unsure** one: judge those again (unsure is never a pass). Those verdicts are final: you may add
 a line saying you disagree, never change one. (No simulator in this session: write the scorecard in
 `duo/review.md` from the code yourself, every verdict **built, not seen**.) Then write the layout plan,
-one line per screen that is not native: what it becomes on the cover, on the inner screen sideways
-(what an unfolding phone shows first) and on the inner screen upright, using the patterns table.
+one line per screen that is not native: what it becomes on the outer display, on the inner display in
+landscape (open wide, what an opening phone shows first) and in portrait (open tall), using the patterns table.
 Show the person the plan in a few lines and keep going; stop for a yes only if the plan would
 remove or rename something they use.
 
@@ -125,22 +133,22 @@ under Still open and is never built (trap D-01). No simulator is not a reason to
 item, and not a licence to fix guesses. Then the
 layouts in the plan, using the route file's "duo-native layout" section. Rules: the app keeps its
 own colors, fonts, wording, components and features; one screen and one state with two
-arrangements, never two copies; the new layouts switch on only when the screen is both wide and
-tall, so an ordinary iPhone looks exactly as before, upright and sideways; no new features and no
+arrangements, never two copies; the new layouts switch on only when the space is both wide and
+tall, so an ordinary iPhone looks exactly as before, in portrait and landscape; no new features and no
 unrelated clean-up. Phones keep their look, not their bugs: a rule that picks a layout by
 orientation, device type or screen size is still replaced, with a width rule that gives phones
 the same result. Native: guard iOS 27.1 APIs with `if #available(iOS 27.1, *)`.
 
-**6. After.** The duo-shooter agent runs the same `duo-shot` with `--label after`, in the same positions
-as "before" (book and laptop too if the person said yes); then `duo-shot compare <before folder> <after folder>` for the side-by-side
+**6. After.** The duo-shooter agent runs the same `duo-shot` with `--label after`, in the same poses
+as "before" (book, laptop and tent too if the person said yes); then `duo-shot compare <before folder> <after folder>` for the side-by-side
 page. The duo-judge agent scores the new run, one call per screen, the same way as in step 4. Then the
 normal-phone check, the same way as "before". Web: `duo-shot phone ... --label phone-after`, then
 `duo-shot compare <phone-before folder> <phone-after folder>`: every phone picture must come out **same**
 (exit 0). A **CHANGED** one means the new layout reaches an ordinary iPhone: fix it (`diff/` marks the
-changed pixels in red). The desktop window follows `references/web.md`. Native: the same screens upright
+changed pixels in red). The desktop window follows `references/web.md`. Native: the same screens in portrait
 again, each checked with `duo-shot diff <before.png> <after.png>` (must say "same"), and on the app's
-minimum iOS too. Sideways only if this session has a way to turn that simulator (no command-line tool
-turns an ordinary iPhone): otherwise write "ordinary iPhone held sideways: not checked" under Still open.
+minimum iOS too. Landscape only if this session has a way to turn that simulator (no command-line tool
+turns an ordinary iPhone): otherwise write "ordinary iPhone in landscape: not checked" under Still open.
 Then fix: every screen the judge did not score native goes back to step 5 with the judge's "no" answers and its
 three worst things as the list to fix, and the round repeats (build, shoot, judge, phone check). Up to 3
 rounds. Still not native after 3: stop and report what is left.
@@ -160,13 +168,13 @@ kept goes under Still open. That is the whole polish: never a second polish roun
 skip it and say so.
 
 **7. Report** in this exact shape (plain words; the reader may not be an engineer):
-- **What changed**: one line per screen (how it is laid out now on each screen), then one line
+- **What changed**: one line per screen (how it is laid out now on each display), then one line
   per fit fix.
 - **Scorecard**: every screen with the judge's before, after and after-polish verdicts, copied from the
   `judge.md` files word for word, which model judged, the path to `compare.html`, the polish items
   fixed and the ones left (with why), and the normal-phone result (same, or what changed).
 - **Proof, by tier**: what the Duo simulator proved; what a desktop browser proved; what was only
-  read in code; what only the real phone can prove (feel, camera, crease, real hinge, split view).
+  read in code; what only the real phone can prove (feel, camera, the fold's look, real hinge, Split View multitasking).
 - **Still open**: anything not native, failed, unchecked, or needing a decision.
 - **Publish step**: the exact step to make it live, then ask before doing it. Pushed is not live.
 
@@ -179,7 +187,7 @@ first: the notebook stays on this computer. Then offer to send the lesson to the
 maintainers so every user gets it.
 
 ## Hard rules
-- "Done" = every screen is **native** on both screens (or listed under Still open with the reason),
+- "Done" = every screen is **native** on both displays (or listed under Still open with the reason),
   the scenario passes in every required pose, folding mid-task loses nothing, ordinary phones look
   as before (the normal-phone pictures compare the same), the tested revision is named, and evidence is labelled by tier. For a fit-only job,
   "passes, no changes" is a complete, good answer.

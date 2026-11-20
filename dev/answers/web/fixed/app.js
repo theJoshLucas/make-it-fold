@@ -31,7 +31,7 @@ function renderEditor() {
 }
 
 // A narrow song list gets the compact layout. Measure the room the list really has (the page
-// minus the sidebar), not the window: unfolded and upright, the sidebar leaves it about 449px.
+// minus the sidebar), not the window: open in portrait, the sidebar leaves it about 449px.
 function applyLayout() {
   var compact = document.querySelector(".content").clientWidth < 500;
   document.body.classList.toggle("compact", compact);

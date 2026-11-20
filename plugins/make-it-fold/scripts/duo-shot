@@ -6,7 +6,7 @@ WEB (a site running on your own computer, e.g. a dev server on localhost:5173):
                [--poses default|all|<a,b,c>] [--label before|after] [--out duo/shots]
   The page is loaded THROUGH a local proxy that slips in a small reporter script, so the app's
   code is not touched. In every pose the reporter measures the page from inside (size, safe
-  areas, sideways scroll, controls under the side bar or the home indicator, inputs that make
+  areas, sideways scroll, controls under the vertical bar or the home indicator, inputs that make
   Safari zoom) and checks the page was not reloaded by the fold.
 
 NATIVE (an iPhone/iPad app):
@@ -28,7 +28,7 @@ PHONE (the normal-phone check for a web app; no simulator, takes seconds):
   duo-shot phone --url http://localhost:5173 [--path / ...] [--scenario duo/scenario.json]
                  [--desktop 1280x800|none] [--sizes phones|duo] [--label before|after] [--out duo/shots]
   Draws the page in this Mac's own WebKit (Safari's engine) at the sizes of ordinary iPhones (390 x 844
-  upright and 844 x 390 sideways; the biggest, 440 x 956 and 956 x 440) and in a desktop window. It
+  in portrait and 844 x 390 in landscape; the biggest, 440 x 956 and 956 x 440) and in a desktop window. It
   follows the scenario's taps and typing to every named state and saves one picture per state and size,
   plus one per further screenful where the page scrolls. Take "before" pictures of the untouched app and
   "after" pictures when the work is done, then compare the two folders: every phone picture must come
@@ -55,11 +55,12 @@ VERDICTS (after the duo-judge agent has scored each screen of a run, one call pe
   screen with no verdict yet or an "unsure" one (judge those again). Exit 0 only when every screen has a
   verdict that is not unsure.
 
-Poses: default = cover-portrait, cover-landscape, cover-landscape-flipped, inner-portrait,
-inner-landscape. all = default + book, laptop.
+Poses (Apple's words: outer and inner display, portrait and landscape): default = outer-portrait,
+outer-landscape, outer-landscape-flipped, inner-portrait (Apple's "open tall"), inner-landscape ("open
+wide"). all = default + the partially open poses book, laptop and tent.
 
 Scenario file (optional, JSON): {"paths": ["/", "/new"], "steps": {"/new": [
-  {"name": "form half filled"}, {"type": ["#title", "Half-typed note"]}, {"pose": "cover-portrait"},
+  {"name": "form half filled"}, {"type": ["#title", "Half-typed note"]}, {"pose": "outer-portrait"},
   {"expect_value": ["#title", "Half-typed note"]}, {"tap": "button[type=submit]"},
   {"expect_visible": "#save"}, {"expect_text": "Saved"}]}}
 Never put real passwords in a scenario. Never point a scenario at live data (see the
@@ -72,7 +73,7 @@ on every picture), full-size screenshots (App Store sizes) and small copies in t
 The last line printed is `RESULT {json}`: the run folder, how many pictures, and which ones came out
 blank, never stopped moving, or were retaken.
 Web runs also print DESIGN NOTES per pose (one column on a wide screen, stretched controls, long
-lines, unused width, small touch targets, text that grows on the inner screen). Notes are prompts
+lines, unused width, small touch targets, text that grows on the inner display). Notes are prompts
 for the design review, not failures: they never change the exit code.
 Exit code: 0 = no issues found, 1 = issues found, 2 = could not run.
 """
@@ -101,8 +102,8 @@ _spec = importlib.util.spec_from_loader("duo_listen", _loader)
 listen = importlib.util.module_from_spec(_spec)
 _loader.exec_module(listen)
 
-DEFAULT_POSES = ["cover-portrait", "cover-landscape", "cover-landscape-flipped", "inner-portrait", "inner-landscape"]
-ALL_POSES = DEFAULT_POSES + ["book", "laptop"]
+DEFAULT_POSES = ["outer-portrait", "outer-landscape", "outer-landscape-flipped", "inner-portrait", "inner-landscape"]
+ALL_POSES = DEFAULT_POSES + ["book", "laptop", "tent"]
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 
@@ -150,7 +151,11 @@ def poses_from(arg):
         return DEFAULT_POSES
     if arg == "all":
         return ALL_POSES
-    return [p.strip() for p in arg.split(",") if p.strip()]
+    poses = [p.strip() for p in arg.split(",") if p.strip()]
+    unknown = [p for p in poses if p not in ALL_POSES]
+    if unknown:
+        raise ShotError(f"unknown pose {', '.join(unknown)}. Poses (Apple's names): {', '.join(ALL_POSES)}")
+    return poses
 
 
 def thumb(src, dst, size=900):
@@ -161,7 +166,7 @@ def thumb(src, dst, size=900):
 # Pictures are measured from a small copy made by macOS's own sips, so no extra libraries are needed.
 SETTLED = 0.03     # two captures differing on under 3% of their pixels count as the same picture
 BLANK = 0.99       # one color on 99% of the picture: nothing was drawn
-EMPTY_FLAG = 25    # an inner-screen picture whose biggest empty patch is over 25% gets flagged
+EMPTY_FLAG = 25    # an inner-display picture whose biggest empty patch is over 25% gets flagged
 
 
 def small_rgb(png, maxdim=160):
@@ -237,6 +242,7 @@ def changed(a, b, tol=24):
 
 
 def is_inner(pose):
+    """Book and laptop are the inner display partially open; tent is the outer display."""
     return pose.startswith("inner") or pose in ("book", "laptop")
 
 
@@ -269,7 +275,7 @@ figure{{margin:0;background:var(--card);border-radius:10px;padding:8px}} img{{wi
 
 
 QUESTIONS = ["1 uses the room", "2 shows more", "3 built for short", "4 bars are the system's",
-             "5 clear of the fold", "6 forms sized for the screen", "7 same app", "8 looks deliberate"]
+             "5 clear of the fold", "6 forms sized for the display", "7 same app", "8 looks deliberate"]
 
 
 def screen_of(row):
@@ -277,13 +283,13 @@ def screen_of(row):
 
 
 def review_sheet(outdir, rows, title, settings=None):
-    """The design scorecard: one block per screen, a line for the cover and one for the inner screen.
+    """The design scorecard: one block per screen, a line for the outer display and one for the inner display.
     duo-shot cannot judge design. The duo-judge agent fills this in from the pictures; the agent that
     built the layouts never does (trap D-15)."""
     screens = {}
     for r in rows:
         screens.setdefault(screen_of(r), []).append(r)
-    head = "| Screen size | " + " | ".join(QUESTIONS) + " | Verdict |"
+    head = "| Display | " + " | ".join(QUESTIONS) + " | Verdict |"
     rule = "|" + "---|" * (len(QUESTIONS) + 2)
     lines = [f"# Design review: {title}", "",
              "For the duo-judge agent, never the agent that built the layouts (trap D-15).",
@@ -291,7 +297,7 @@ def review_sheet(outdir, rows, title, settings=None):
              "`judge/<screen>.md`; `duo-shot verdicts <this folder>` gathers them. The eight questions are in the make-it-fold skill,",
              "`references/design.md`. Answer yes / no / n-a. Verdict: **native**, **fits only** or **broken**.",
              f"Biggest empty patch: the largest area of plain background, as a share of the picture. On the",
-             f"inner screen over {EMPTY_FLAG}% means question 1 is a no, unless that area is the end of a scrolling list.",
+             f"inner display over {EMPTY_FLAG}% means question 1 is a no, unless that area is the end of a scrolling list.",
              "Settings the app had for every picture: " + (", ".join(f"{k}={v}" for k, v in settings.items()) if settings
                                                          else "none set (the app's defaults; say so if the owner uses others)"),
              ""]
@@ -306,8 +312,8 @@ def review_sheet(outdir, rows, title, settings=None):
         if notes:
             lines += ["", "Design notes measured from the page (prompts, not verdicts):"] + [f"- {n}" for n in notes]
         blank = " | ".join("?" for _ in QUESTIONS)
-        lines += ["", head, rule, f"| Cover | {blank} | ? |", f"| Inner | {blank} | ? |", "",
-                  "If not native, what this screen should become (cover / inner sideways / inner upright): ?", ""]
+        lines += ["", head, rule, f"| Outer | {blank} | ? |", f"| Inner | {blank} | ? |", "",
+                  "If not native, what this screen should become (outer display / inner landscape / inner portrait): ?", ""]
     (outdir / "review.md").write_text("\n".join(lines) + "\n")
 
 
@@ -325,7 +331,7 @@ def verdicts(run):
     for r in json.loads(summary.read_text())["rows"]:
         if r.get("shot") and screen_of(r) not in order:
             order.append(screen_of(r))
-    head = ("| Screen | Screen size | 1 room | 2 more | 3 short | 4 bars | 5 fold | 6 forms | 7 same app | 8 deliberate | Verdict |\n"
+    head = ("| Screen | Display | 1 room | 2 more | 3 short | 4 bars | 5 fold | 6 forms | 7 same app | 8 deliberate | Verdict |\n"
             "|---|---|---|---|---|---|---|---|---|---|---|")
     rows, bodies, missing, unsure, tally = [], [], [], [], {}
     found = {}  # a judge file is matched by the screen named in its table, whatever the file is called
@@ -571,7 +577,7 @@ class WebRun:
         return r
 
     def fresh(self, settle=True):
-        """Ask the page what it sees. Safari moves the side bar and toolbars a beat after a
+        """Ask the page what it sees. Safari moves the vertical bar and toolbars a beat after a
         fold or turn, so keep asking until two readings in a row agree (up to about 6 s)."""
         if settle:
             # Wait until the page has stopped reporting resizes for 2 s (at most 10 s).
@@ -713,25 +719,25 @@ class WebRun:
         return self.finish(f"Duo check: {self.base} ({self.a.label})")
 
     def text_growth(self):
-        """Text far bigger on the inner screen than on the cover: Safari enlarging wide text on its
+        """Text far bigger on the inner display than on the outer display: Safari enlarging wide text on its
         own (trap G-13), or an uncapped scale (G-05). A step of up to 1.25 times is allowed."""
         by = {}
         for r in self.rows:
             if r.get("fonts") and r.get("pose") in DEFAULT_POSES:
                 by.setdefault(screen_of(r), {})[r["pose"]] = r
         for rows in by.values():
-            cover = rows.get("cover-portrait")
-            if not cover:
+            outer = rows.get("outer-portrait")
+            if not outer:
                 continue
             for pose in ("inner-portrait", "inner-landscape"):
                 r = rows.get(pose)
                 if not r:
                     continue
-                grew = [f"{k} {cover['fonts'][k]:g}px to {r['fonts'][k]:g}px" for k in ("body", "heading", "button", "text", "paragraph")
-                        if cover["fonts"].get(k) and r["fonts"].get(k) and r["fonts"][k] > cover["fonts"][k] * 1.25]
+                grew = [f"{k} {outer['fonts'][k]:g}px to {r['fonts'][k]:g}px" for k in ("body", "heading", "button", "text", "paragraph")
+                        if outer["fonts"].get(k) and r["fonts"].get(k) and r["fonts"][k] > outer["fonts"][k] * 1.25]
                 if grew:
-                    r["design"].append({"kind": "text-grows-on-inner-screen",
-                                        "detail": "type is over 1.25 times its cover size here (" + ", ".join(grew) + "): if the app did not ask for it, Safari did (G-13); if it did, cap it and show more (G-05)"})
+                    r["design"].append({"kind": "text-grows-on-inner-display",
+                                        "detail": "type is over 1.25 times its outer-display size here (" + ", ".join(grew) + "): if the app did not ask for it, Safari did (G-13); if it did, cap it and show more (G-05)"})
 
     def measure(self):
         """The biggest empty patch on every picture, and any picture that came out blank."""
@@ -891,7 +897,7 @@ class NativeRun(WebRun):
                     self.moving.append(label)
                 issues = [] if self.running(udid) else [{"kind": "app-not-running", "detail": f"the app was gone in {pose} (crash?)"}]
                 self.rows.append({"label": f"{name} · {pose}" if name else pose, "screen": name, "pose": pose, "shot": shot, "thumb": th,
-                                  "size": f"{st['activeScreen']} screen, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
+                                  "size": f"{st['activeScreen']} display, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
                                   "issues": issues})
         # Keep the report grouped by screen, in the scenario's order.
         order = {sc.get("name"): i for i, sc in enumerate(self.screens)}
@@ -936,7 +942,7 @@ class NativeRun(WebRun):
                     self.moving.append(f"{name}-{pose}" if name else pose)
                 issues = [] if self.running(udid) else [{"kind": "app-not-running", "detail": f"the app was gone after {pose} (crash?)"}]
                 self.rows.append({"label": label, "screen": name, "pose": pose, "shot": shot, "thumb": th,
-                                  "size": f"{st['activeScreen']} screen, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
+                                  "size": f"{st['activeScreen']} display, {st['sizePoints'][0]:g} x {st['sizePoints'][1]:g} points",
                                   "issues": issues})
         if len(self.screens) == 1 and not self.screens[0].get("name"):
             print("duo-shot: only the screen the app opens on was photographed. List every screen in a scenario "
@@ -946,9 +952,9 @@ class NativeRun(WebRun):
 
 PHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 "
             "(KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1")
-PHONE_SIZES = [("phone", 390, 844), ("phone-sideways", 844, 390), ("phone-max", 440, 956), ("phone-max-sideways", 956, 440)]
+PHONE_SIZES = [("phone", 390, 844), ("phone-landscape", 844, 390), ("phone-max", 440, 956), ("phone-max-landscape", 956, 440)]
 # The Duo's Safari page sizes with toolbars shown (references/facts.md), for a quick look before the real pictures.
-DUO_PREVIEW_SIZES = [("duo-cover-portrait", 382, 580), ("duo-cover-landscape", 594, 368),
+DUO_PREVIEW_SIZES = [("duo-outer-portrait", 382, 580), ("duo-outer-landscape", 594, 368),
                      ("duo-inner-portrait", 669, 867), ("duo-inner-landscape", 951, 585)]
 
 
@@ -1090,6 +1096,7 @@ def main():
             sys.exit(diff_pictures(a.before, a.after, a.marks))
         if a.mode == "phone":
             sys.exit(PhoneRun(a).go())
+        poses_from(a.poses)  # a misspelled or retired pose name stops here, before any folder is made
         run = WebRun(a) if a.mode == "web" else NativeRun(a)
         lock = hold_run_lock()  # kept open until this process ends
         sys.exit(run.go())

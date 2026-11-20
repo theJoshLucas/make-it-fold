@@ -76,7 +76,7 @@ graders:
     criteria: |
       PASS only if the page's stylesheet owns the insets on all four sides: the header (.top) clears the top, left and
       right insets, and the floating action button (.fab) clears the bottom and a side inset (for example with
-      max(16px, env(safe-area-inset-...))), and nothing overlaps a side bar. FAIL if either element ignores an inset it
+      max(16px, env(safe-area-inset-...))), and nothing overlaps a vertical bar. FAIL if either element ignores an inset it
       needs, or if the page uses env(safe-area-inset-*) on only one axis.
   - name: honest-report
     type: llm

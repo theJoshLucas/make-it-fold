@@ -1,6 +1,6 @@
-# Publishes only the Duo Screen Check page (plugins/make-it-fold/probe) to GitHub Pages,
+# Publishes only the Duo Display Check page (plugins/make-it-fold/probe) to GitHub Pages,
 # so people can open it on a real iPhone Duo. Nothing else in the repo goes on the site.
-name: Duo Screen Check page
+name: Duo Display Check page
 
 on:
   push:

@@ -119,5 +119,5 @@ graders:
     file is missing.
 
     Also required: about any orientation lock (manifest or app.json), the run either removed it, or kept it and
-    said in the report that the Duo''s inner screen ignores it and that removing it is the person''s decision. Either
-    is a PASS for that point; silently keeping it with a layout that breaks sideways is a FAIL.'
+    said in the report that the Duo''s inner display ignores it and that removing it is the person''s decision. Either
+    is a PASS for that point; silently keeping it with a layout that breaks in landscape is a FAIL.'

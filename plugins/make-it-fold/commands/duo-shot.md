@@ -1,5 +1,5 @@
 ---
-description: Photograph every screen of an app in every iPhone Duo fold position and score each for fit and design (changes nothing)
+description: Photograph every screen of an app in every iPhone Duo pose and score each for fit and design (changes nothing)
 argument-hint: "[local URL, or a native app's bundle id]"
 ---
 
@@ -7,7 +7,7 @@ Check $ARGUMENTS on the iPhone Duo simulator without changing any code.
 
 - A web app: make sure it is running locally (start its dev server if needed, never against live
   data), then run `${CLAUDE_PLUGIN_ROOT}/scripts/duo-shot web --url <local url>` (add
-  `--scenario duo/scenario.json` if the app has one, `--poses all` to include half-open).
+  `--scenario duo/scenario.json` if the app has one, `--poses all` to add the partially open poses: book, laptop and tent).
 - A native app: build it for the simulator and run
   `${CLAUDE_PLUGIN_ROOT}/scripts/duo-shot native --bundle <id> --app <path to .app>` (add
   `--scenario duo/scenario.json` so every screen is shot, not just the first one).

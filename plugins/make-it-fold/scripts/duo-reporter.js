@@ -163,7 +163,7 @@
           if (a.r.right <= b.r.left + 1 && overlapY >= 60) { sideBySide = true; break; }
         }
       }
-      if (!sideBySide) out.push({ kind: "one-column-on-wide-screen", detail: "at " + W + "px wide everything is still in one column; the inner screen has room for a second pane or more columns" });
+      if (!sideBySide) out.push({ kind: "one-column-on-wide-screen", detail: "at " + W + "px wide everything is still in one column; the inner display has room for a second pane or more columns" });
       var left = Infinity, right = -Infinity;
       document.querySelectorAll("p, h1, h2, h3, li, td, th, img, button, input, select, textarea, label, a, canvas, svg, video").forEach(function (el) {
         if (!visible(el)) return;

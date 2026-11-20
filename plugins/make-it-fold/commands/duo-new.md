@@ -8,8 +8,8 @@ effort: high
 Build a new app for the iPhone Duo: $ARGUMENTS
 
 Use the `make-it-fold` skill's **new app** job: read `references/new-app.md` and
-`references/design.md`, run `duo-setup` and `duo-docs`, then build every screen with its cover
-layout and its inner-screen layout together. Prove each screen with `duo-shot` and the scorecard
+`references/design.md`, run `duo-setup` and `duo-docs`, then build every screen with its outer display
+layout and its inner display layout together. Prove each screen with `duo-shot` and the scorecard
 as you go (the duo-shooter agent takes the pictures, the duo-judge agent scores them), and finish
 with the skill's five-part report.
 

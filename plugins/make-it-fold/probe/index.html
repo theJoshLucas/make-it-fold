@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="Fold, unfold and turn your iPhone Duo. Each position is checked against the simulator the make-it-fold plugin is tested on.">
-<title>Duo Screen Check</title>
+<title>Duo Display Check</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='4' width='22' height='24' rx='4' fill='none' stroke='%233a5bd9' stroke-width='2.5'/%3E%3Cpath d='M16 4v24' stroke='%233a5bd9' stroke-width='2' stroke-dasharray='3 2.5'/%3E%3C/svg%3E">
 <style>
   :root {
@@ -71,7 +71,7 @@
   h1 { font-size: 26px; line-height: 1.15; letter-spacing: -0.015em; font-weight: 700; margin: var(--space-1) 0 var(--space-2); }
   .lede { margin: 0; color: var(--ink-muted); max-width: 46ch; }
 
-  /* A small map of the phone: both screens to scale, the one in use lit up */
+  /* A small map of the phone: both displays to scale, the one in use lit up */
   .now { display: grid; gap: var(--space-4); align-items: center; }
   @media (min-width: 520px) { .now { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); } }
   .stage { position: relative; height: 184px; border-radius: 14px; background: var(--surface-muted); overflow: hidden; }
@@ -192,15 +192,15 @@
 <main>
   <header>
     <p class="eyebrow">make-it-fold</p>
-    <h1>Duo Screen Check</h1>
+    <h1>Duo Display Check</h1>
     <p class="lede" id="lede">Fold, unfold and turn your phone. Every position is checked against the simulator the plugin is tested on.</p>
   </header>
 
   <section class="now" id="now" aria-live="polite">
     <div class="stage" id="stage" aria-hidden="true">
-      <div class="screen" id="scr-cover"></div>
+      <div class="screen" id="scr-outer"></div>
       <div class="screen" id="scr-inner"><div class="fold" id="fold"></div><div class="safe" id="safe"></div></div>
-      <span class="tag" id="tag-cover">Closed</span>
+      <span class="tag" id="tag-outer">Closed</span>
       <span class="tag" id="tag-inner">Open</span>
     </div>
     <div class="readout">
@@ -239,16 +239,16 @@
 <div class="ruler" id="vh" style="height:100vh"></div>
 <div id="inset"></div>
 <script>
-// Duo Screen Check. Shows what this screen gives a web page, recognises the iPhone Duo's five
+// Duo Display Check. Shows what this display gives a web page, recognises the iPhone Duo's five
 // positions and compares each one with what the Duo simulator measured (references/facts.md).
 // When it is served from this computer by duo-listen, it also posts the same numbers to /report
 // so a test can verify a fold from inside the page. Anywhere else, nothing leaves the phone.
 (function () {
   // The Duo simulator's Safari numbers (CSS px). Heights: toolbars shown, then hidden.
   var POSES = [
-    { id: "cover-tall", label: "Closed, tall", w: 382, h: [580, 618], ins: [0, 0, 0, 0] },
-    { id: "cover-wide", label: "Closed, wide", w: 594, h: [368, 406], ins: [0, 0, 0, 0] },
-    { id: "cover-wide-flipped", label: "Closed, wide, flipped", w: 594, h: [368, 406], ins: [0, 0, 0, 0] },
+    { id: "outer-tall", label: "Closed, tall", w: 382, h: [580, 618], ins: [0, 0, 0, 0] },
+    { id: "outer-wide", label: "Closed, wide", w: 594, h: [368, 406], ins: [0, 0, 0, 0] },
+    { id: "outer-wide-flipped", label: "Closed, wide, flipped", w: 594, h: [368, 406], ins: [0, 0, 0, 0] },
     { id: "inner-tall", label: "Open, tall", w: 669, h: [867, 902], ins: [0, 0, 34, 0] },
     { id: "inner-wide", label: "Open, wide", w: 951, h: [585, 620], ins: [0, 0, 34, 0] }
   ];
@@ -301,13 +301,13 @@
     };
   }
 
-  // Which of the five positions this is. Size alone tells cover from inner (screen.width
-  // reports the cover size even when the phone is open, so it is never used for this).
+  // Which of the five positions this is. Size alone tells the outer display from the inner one (screen.width
+  // reports the outer display size even when the phone is open, so it is never used for this).
   function classify(d) {
     var tall = d.innerHeight >= d.innerWidth;
-    if (tall) return d.innerWidth < 520 ? "cover-tall" : "inner-tall";
+    if (tall) return d.innerWidth < 520 ? "outer-tall" : "inner-tall";
     if (d.innerHeight >= 480) return "inner-wide";
-    return /secondary/.test(d.orientation) ? "cover-wide-flipped" : "cover-wide";
+    return /secondary/.test(d.orientation) ? "outer-wide-flipped" : "outer-wide";
   }
   function pose(id) { for (var i = 0; i < POSES.length; i++) if (POSES[i].id === id) return POSES[i]; }
   function ins(d) { return [d.insetTop, d.insetRight, d.insetBottom, d.insetLeft]; }
@@ -326,8 +326,8 @@
 
   function wxh(w, h) { return w + " × " + h; }
 
-  // The picture: both screens side by side at one scale, in the shape the phone is in now.
-  // The screen in use is drawn from the live numbers; the other from the simulator's.
+  // The picture: both displays side by side at one scale, in the shape the phone is in now.
+  // The display in use is drawn from the live numbers; the other from the simulator's.
   var prev = {};
   function place(el, x, y, w, h) {
     var old = prev[el.id];
@@ -345,9 +345,9 @@
   }
   function draw(d, id) {
     var stage = $("stage"), sw = stage.clientWidth, sh = stage.clientHeight;
-    var cover = $("scr-cover"), inner = $("scr-inner");
+    var outer = $("scr-outer"), inner = $("scr-inner");
     if (visitor) {
-      cover.hidden = true; $("tag-cover").hidden = true; $("tag-inner").hidden = true;
+      outer.hidden = true; $("tag-outer").hidden = true; $("tag-inner").hidden = true;
       var kv = Math.min((sw - 48) / d.innerWidth, (sh - 48) / d.innerHeight);
       var vw = Math.round(d.innerWidth * kv), vh = Math.round(d.innerHeight * kv);
       inner.classList.add("on"); $("fold").hidden = true; $("safe").hidden = true;
@@ -355,18 +355,18 @@
       return;
     }
     var tall = d.innerHeight >= d.innerWidth, onInner = id.indexOf("inner") === 0;
-    var c = pose(tall ? "cover-tall" : "cover-wide"), n = pose(tall ? "inner-tall" : "inner-wide");
+    var c = pose(tall ? "outer-tall" : "outer-wide"), n = pose(tall ? "inner-tall" : "inner-wide");
     var cw = onInner ? c.w : d.innerWidth, ch = onInner ? c.h[0] : d.innerHeight;
     var iw = onInner ? d.innerWidth : n.w, ih = onInner ? d.innerHeight : n.h[0];
     var gap = 14, labelRoom = 26, pad = 18;
     var k = Math.min((sw - 2 * pad - gap) / (cw + iw), (sh - pad - labelRoom - 10) / Math.max(ch, ih));
     var a = [Math.round(cw * k), Math.round(ch * k)], b = [Math.round(iw * k), Math.round(ih * k)];
     var x0 = Math.round((sw - a[0] - gap - b[0]) / 2), base = Math.round(pad + Math.max(a[1], b[1]) + (sh - pad - labelRoom - 10 - Math.max(a[1], b[1])) / 2);
-    place(cover, x0, base - a[1], a[0], a[1]);
+    place(outer, x0, base - a[1], a[0], a[1]);
     place(inner, x0 + a[0] + gap, base - b[1], b[0], b[1]);
-    cover.classList.toggle("on", !onInner); inner.classList.toggle("on", onInner);
-    $("tag-cover").classList.toggle("on", !onInner); $("tag-inner").classList.toggle("on", onInner);
-    $("tag-cover").style.left = (x0 + a[0] / 2) + "px"; $("tag-cover").style.top = (base + 12) + "px";
+    outer.classList.toggle("on", !onInner); inner.classList.toggle("on", onInner);
+    $("tag-outer").classList.toggle("on", !onInner); $("tag-inner").classList.toggle("on", onInner);
+    $("tag-outer").style.left = (x0 + a[0] / 2) + "px"; $("tag-outer").style.top = (base + 12) + "px";
     $("tag-inner").style.left = (x0 + a[0] + gap + b[0] / 2) + "px"; $("tag-inner").style.top = (base + 12) + "px";
     // Wide and open is a book (the fold runs down the middle); tall and open is a laptop (across).
     $("fold").className = "fold " + (tall ? "across" : "down");
@@ -472,7 +472,7 @@
       ["Orientation", d.orientation],
       ["Opened as", d.displayMode === "browser" ? "Safari tab" : d.displayMode === "standalone" ? "Home Screen app" : d.displayMode],
       ["Fold position sensor", d.posture],
-      ["Screen halves", d.viewportSegments],
+      ["Display halves", d.viewportSegments],
       ["Touch points", d.maxTouchPoints],
       ["Browser", d.userAgent]
     ];
@@ -482,7 +482,7 @@
   }
 
   function summary() {
-    var d = read("share"), lines = ["iPhone Duo screen check (make-it-fold)", ""];
+    var d = read("share"), lines = ["iPhone Duo display check (make-it-fold)", ""];
     POSES.forEach(function (p) {
       var r = seen[p.id];
       if (!r) { lines.push(p.label + ": not checked"); return; }
@@ -503,7 +503,7 @@
   $("share").addEventListener("click", function () {
     var text = summary(), btn = this;
     if (canShare) {
-      navigator.share({ title: "iPhone Duo screen check", text: text }).catch(function () {});
+      navigator.share({ title: "iPhone Duo display check", text: text }).catch(function () {});
       return;
     }
     var done = function () { flashLabel(btn, "Copied"); };
@@ -552,7 +552,7 @@
     post(e.persisted ? "pageshow-cached" : "load");
     lastJudged = null; changed(e.persisted ? "pageshow-cached" : "load");
   });
-  if (visitor) $("lede").textContent = "A screen check for the iPhone Duo. On a Duo, it compares every fold position with the simulator the plugin is tested on.";
+  if (visitor) $("lede").textContent = "A display check for the iPhone Duo. On a Duo, it compares every fold position with the simulator the plugin is tested on.";
 })();
 </script>
 </body>

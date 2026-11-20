@@ -9,8 +9,8 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            // Regular width AND regular height: the Duo's inner screen (and tablets). An ordinary
-            // iPhone, even a large one held sideways, keeps the one-pane layout it always had.
+            // Regular width AND regular height: the Duo's inner display (and tablets). An ordinary
+            // iPhone, even a large one in landscape, keeps the one-pane layout it always had.
             if widthClass == .regular && heightClass == .regular {
                 twoPanes(width: proxy.size.width)
             } else {
@@ -19,7 +19,7 @@ struct ContentView: View {
         }
     }
 
-    // Cover screen and ordinary iPhones: the list, pushing to the open gig.
+    // Outer display and ordinary iPhones: the list, pushing to the open gig.
     private func onePane(width: CGFloat) -> some View {
         NavigationStack(path: Binding(get: { selection.map { [$0] } ?? [] }, set: { selection = $0.last })) {
             gigList(width: width, pushes: true)
@@ -29,11 +29,11 @@ struct ContentView: View {
         }
     }
 
-    // Inner screen: the list on the leading side, the open gig beside it.
+    // Inner display: the list on the leading side, the open gig beside it.
     private func twoPanes(width: CGFloat) -> some View {
         let listWidth = min(340, max(280, width * 0.36))
         // With nothing picked yet, the detail pane shows the first gig instead of sitting empty.
-        // It is only shown, not picked, so folding to the cover still lands on the list.
+        // It is only shown, not picked, so folding to the outer display still lands on the list.
         let picked = selection.flatMap { id in store.gigs.contains(where: { $0.id == id }) ? id : nil }
         let shown = picked ?? store.gigs.first?.id
         return HStack(spacing: 0) {

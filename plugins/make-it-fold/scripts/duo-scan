@@ -5,7 +5,7 @@ It works out what kind of app this is (which "surfaces" it ships on) and lists S
 code patterns that often break on the iPhone Duo. A suspect is not a bug. It is fixed when a
 real check on the Duo simulator fails, or when the code plainly does what the trap describes.
 It also lists MUST-DO items (Apple's requirements that no picture can show) and DESIGN HINTS
-(signs that the inner screen will get a stretched phone layout). A clean scan says nothing
+(signs that the inner display will get a stretched phone layout). A clean scan says nothing
 about design: every screen still gets a scorecard verdict from its pictures.
 The scan also tells the job which recipe files to read, so the job reads only what applies.
 
@@ -31,7 +31,7 @@ MAX_FILE = 600_000
 # (id, surface, regex, what it means, recipe to read)
 WEB_RULES = [
     ("full-height-vh", "web", r"\b100vh\b|\bh-screen\b|\bmin-h-screen\b|\bmax-h-screen\b|height:\s*100%\s*;?\s*$",
-     "full-height built on 100vh: hides behind browser bars and the side bar", "web.md#height"),
+     "full-height built on 100vh: hides behind browser bars and the vertical bar", "web.md#height"),
     ("viewport-tag", "web", r"<meta[^>]+name=[\"']viewport[\"']",
      "viewport tag: check viewport-fit=cover (needed for safe-area insets) and no user-scalable=no", "web.md#viewport"),
     ("fixed-or-sticky", "web", r"position:\s*(fixed|sticky)|\bfixed\s+(top|bottom|inset)|\bsticky\s+top",
@@ -39,9 +39,9 @@ WEB_RULES = [
     ("orientation-query", "web", r"orientation:\s*(portrait|landscape)|matchMedia\([^)]*orientation",
      "layout keyed to orientation instead of available width", "web.md#breakpoints"),
     ("device-width-query", "web", r"(min|max)-device-width|(?<![\w.])screen\.(width|height|availWidth|availHeight)|window\.screen\.(width|height)",
-     "layout keyed to the device screen, which reports the COVER size even when the inner screen shows", "web.md#breakpoints"),
+     "layout keyed to the device screen, which reports the outer display's size even when the inner display shows", "web.md#breakpoints"),
     ("fixed-px-width", "web", r"(?<![-\w])(min-)?width:\s*(4[0-9]{2}|[5-9][0-9]{2}|1[0-9]{3})px|\bw-\[(4[0-9]{2}|[5-9][0-9]{2}|1[0-9]{3})px\]",
-     "fixed pixel widths that will not fit the 382 px cover or waste the 951 px inner screen", "web.md#widths"),
+     "fixed pixel widths that will not fit the 382 px outer display or waste the 951 px inner display", "web.md#widths"),
     ("ua-sniff", "web", r"navigator\.(userAgent|platform|vendor)|userAgentData|/iPhone\|iPad|isMobile\(",
      "user-agent check (tag it: layout = suspect; capability or logging = fine)", "web.md#user-agent"),
     ("hover-only", "web", r":hover\b|\bgroup-hover:|\bhover:",
@@ -58,9 +58,9 @@ WEB_RULES = [
     ("canvas-pdf", "web", r"<canvas\b|getContext\(['\"]2d|pdfjs|react-pdf|pdf-lib|konva|fabric\b",
      "canvas or PDF: coordinates and sizes change on a fold", "components.md#canvas"),
     ("overlay", "web", r"createPortal|<Dialog\b|<Popover\b|<Sheet\b|<Drawer\b|<DropdownMenu\b|<Tooltip\b|floating-ui|popper|<dialog\b",
-     "dialogs and popovers: check edges, the side bar and the fold after a resize", "components.md#overlays"),
+     "dialogs and popovers: check edges, the vertical bar and the fold after a resize", "components.md#overlays"),
     ("type-scaled-by-width", "web", r"font(-size)?:[^;{]*\d(vw|vmin|vmax|cqw)\b",
-     "type sized from the window's width: it balloons on the inner screen (use the room to show more)", "web.md#duo-native-layout"),
+     "type sized from the window's width: it balloons on the inner display (use the room to show more)", "web.md#duo-native-layout"),
     ("iframe", "web", r"<iframe\b",
      "iframes: parent CSS cannot fix a third-party frame's insides", "components.md#iframes"),
 ]
@@ -86,7 +86,7 @@ NATIVE_RULES = [
     ("resign-in-update", "native", r"resignFirstResponder|endEditing",
      "keyboard dismissal: never inside a SwiftUI update (it can freeze the app)", "native.md#keyboard"),
     ("sheet", "native", r"\.sheet\(|\.fullScreenCover\(|UISheetPresentationController|\.modalPresentationStyle",
-     "sheets and forms: on the inner screen a form is a panel or a sized card, not a tray as wide as the screen", "native.md#duo-native-layout"),
+     "sheets and forms: on the inner display a form is a panel or a sized card, not a tray as wide as the display", "native.md#duo-native-layout"),
     ("webview", "wrapper", r"WKWebView|SFSafariViewController|WebView\(",
      "a web view: this app is (partly) a website in a native shell", "wrapper.md"),
 ]
@@ -259,7 +259,7 @@ def scan(root):
                         "without it, it is safe on every iPhone, and no screenshot can show it. native.md, Apple's prerequisites")
     if seen["native"] and not wide["native"]:
         design.append("native: no regular-width layout anywhere in the code (no size classes, split view or arrangement "
-                      "view). The inner screen will show the phone layout stretched. design.md, native.md#duo-native-layout")
+                      "view). The inner display will show the phone layout stretched. design.md, native.md#duo-native-layout")
     if seen["web"] and not wide["web"] and surfaces & {"web", "home-screen", "wrapper", "capacitor"}:
         design.append("web: no layout rule for widths of about 600 px and up (no min-width or container query). The inner "
                       "screen will show the phone layout stretched. design.md, web.md#duo-native-layout")
@@ -287,7 +287,7 @@ def human(r):
         if h["count"] > 5:
             out.append(f"      ... {h['count'] - 5} more (use --json)")
     if r.get("design_hints"):
-        out.append("Design hints (signs of a stretched phone on the inner screen):")
+        out.append("Design hints (signs of a stretched phone on the inner display):")
         out += [f"  - {d}" for d in r["design_hints"]]
     out.append("Read these recipes: " + ", ".join(r["read_recipes"]))
     out.append("Read these trap files: " + ", ".join(r["read_traps"]))

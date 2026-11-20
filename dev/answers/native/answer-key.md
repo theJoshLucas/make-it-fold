@@ -16,13 +16,13 @@ read it. Graders in `case.yaml` check each one.
 
 Design (nothing breaks here; these are what "Duo-native" adds):
 
-| # | What is wrong on the inner screen | What Duo-native looks like |
+| # | What is wrong on the inner display | What Duo-native looks like |
 |---|---|---|
 | N9 | The gig list is stretched across 669 or 951 points, and opening a gig replaces it | list on the leading side (about 280 to 340 points), the open gig beside it, switched on regular width AND regular height so ordinary iPhones keep one pane |
-| N10 | The open gig and the half-typed note belong to one layout | the selection and the draft live above the layout switch (the fixed copy keeps the draft in the store), so a gig opened on the cover is still open, with its text, after unfolding |
+| N10 | The open gig and the half-typed note belong to one layout | the selection and the draft live above the layout switch (the fixed copy keeps the draft in the store), so a gig opened on the outer display is still open, with its text, after unfolding |
 
-The fixed copy was shot on the Duo simulator in all 7 poses with a gig opened on the cover first:
-0 issues, the gig stays open through every fold, two panes on the inner screen both ways.
+The fixed copy was shot on the Duo simulator in all 7 poses with a gig opened on the outer display first:
+0 issues, the gig stays open through every fold, two panes on the inner display both ways.
 
 A correct run also: reports per tier (builds / Duo simulator / needs the phone), keeps the app's own look (colors, wording, features), scores each screen for design, does not invent bugs outside this list, and does not run a build it cannot run honestly
 (for example claiming simulator proof without a simulator).
