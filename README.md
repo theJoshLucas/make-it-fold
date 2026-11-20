@@ -71,8 +71,8 @@ When you type `/duo` inside an app's folder, Claude:
    with "before", pixel for pixel. Any screen the judge doesn't score native goes back for another
    round, up to three.
 8. ✨ **Polishes once**, when every screen passes: it fixes the small things the judge noted (an edge
-   that doesn't line up, a gap left empty), then shoots and judges again. If the polish makes anything
-   worse, it puts the passing version back.
+   that doesn't line up, a gap left empty), takes a quick look at each fix, then shoots and judges again.
+   A fix that makes a screen worse is undone and the rest are kept.
 9. 📝 **Reports in plain words**: what each screen looks like now, the scorecard, what the simulator
    proved, what only a real phone can prove, and the exact step to publish. Then it **asks before
    publishing**.

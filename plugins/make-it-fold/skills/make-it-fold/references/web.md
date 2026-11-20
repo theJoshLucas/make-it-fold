@@ -96,5 +96,6 @@ The phone layout stays exactly as it is below about 600 px. Add wide rules for t
   rules off it); an app whose desktop showed the phone layout stretched gets the wide layout there as
   well (the `min-width: 620px and min-height: 480px` rule above includes every desktop and iPad), and
   the report says so. The check reports a mouse, not a touchscreen, so rules behind `(pointer: coarse)`
-  or `(hover: none)` are never reached: switch the Duo layouts on size alone.
+  or `(hover: none)` are never reached: switch the Duo layouts on size alone. `--sizes duo` draws the
+  Duo's four flat Safari sizes the same way, for a quick look at a change before the real pictures.
 

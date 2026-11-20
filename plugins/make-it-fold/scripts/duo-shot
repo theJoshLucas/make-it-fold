@@ -26,7 +26,7 @@ NATIVE (an iPhone/iPad app):
 
 PHONE (the normal-phone check for a web app; no simulator, takes seconds):
   duo-shot phone --url http://localhost:5173 [--path / ...] [--scenario duo/scenario.json]
-                 [--desktop 1280x800|none] [--label before|after] [--out duo/shots]
+                 [--desktop 1280x800|none] [--sizes phones|duo] [--label before|after] [--out duo/shots]
   Draws the page in this Mac's own WebKit (Safari's engine) at the sizes of ordinary iPhones (390 x 844
   upright and 844 x 390 sideways; the biggest, 440 x 956 and 956 x 440) and in a desktop window. It
   follows the scenario's taps and typing to every named state and saves one picture per state and size,
@@ -34,6 +34,8 @@ PHONE (the normal-phone check for a web app; no simulator, takes seconds):
   "after" pictures when the work is done, then compare the two folders: every phone picture must come
   out the same. Same layout engine and rules as Safari on an iPhone; it has no Safari toolbars or safe
   areas, and it reports a mouse, not a touchscreen.
+  --sizes duo draws the Duo's four flat Safari page sizes instead (382 x 580, 594 x 368, 669 x 867,
+  951 x 585): a quick look at a change before the real pictures, never proof and never judged.
 
 COMPARE (two finished runs, side by side):
   duo-shot compare <before folder> <after folder>
@@ -426,11 +428,11 @@ figure{{margin:0;background:var(--card);border-radius:10px;padding:8px}} img{{wi
     for l in labels:
         d = diffs[l]
         desk = not d["size"].startswith("phone")
-        word = "same" if d["same"] else ("desktop changed" if desk else "CHANGED")
+        word = "same" if d["same"] else ("CHANGED" if not desk else "desktop changed" if d["size"] == "desktop" else "changed")
         print(f"  {word:<16}{l}" + ("" if d["same"] else ": " + "; ".join(d["why"])))
         if not d["same"] and not desk:
             bad.append(l)
-    if any(not d["same"] and not d["size"].startswith("phone") for d in diffs.values()):
+    if any(not d["same"] and d["size"] == "desktop" for d in diffs.values()):
         print("A changed desktop window is expected only where it used to show the phone layout stretched.")
     print(f"Phones: {len(bad)} of {sum(1 for d in diffs.values() if d['size'].startswith('phone'))} pictures changed."
           + (f" Red marks: {after / 'diff'}" if bad else ""))
@@ -945,6 +947,9 @@ class NativeRun(WebRun):
 PHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 "
             "(KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1")
 PHONE_SIZES = [("phone", 390, 844), ("phone-sideways", 844, 390), ("phone-max", 440, 956), ("phone-max-sideways", 956, 440)]
+# The Duo's Safari page sizes with toolbars shown (references/facts.md), for a quick look before the real pictures.
+DUO_PREVIEW_SIZES = [("duo-cover-portrait", 382, 580), ("duo-cover-landscape", 594, 368),
+                     ("duo-inner-portrait", 669, 867), ("duo-inner-landscape", 951, 585)]
 
 
 class PhoneRun:
@@ -962,8 +967,9 @@ class PhoneRun:
             if not isinstance(p, str) or not p.startswith("/") or p.startswith("//"):
                 raise ShotError(f"path {p!r} must start with a single '/' (it is added to {self.base})")
         self.steps = scenario.get("steps") or {}
-        self.sizes = [{"name": n, "w": w, "h": h, "ua": PHONE_UA} for n, w, h in PHONE_SIZES]
-        if a.desktop != "none":
+        self.preview = a.sizes == "duo"
+        self.sizes = [{"name": n, "w": w, "h": h, "ua": PHONE_UA} for n, w, h in (DUO_PREVIEW_SIZES if self.preview else PHONE_SIZES)]
+        if a.desktop != "none" and not self.preview:
             try:
                 w, h = (int(v) for v in a.desktop.lower().split("x"))
             except ValueError:
@@ -1013,8 +1019,11 @@ class PhoneRun:
                              "pixels": e["pixels"], "pageHeight": e["pageHeight"], "issues": issues})
         if p.returncode not in (0, None) and not rows:
             raise ShotError(f"the phone-check helper stopped: {(p.stderr or p.stdout).strip()[-300:]}")
-        title = f"Normal-phone check: {self.base} ({self.a.label})"
-        tier = "this Mac's WebKit (Safari's engine) at ordinary iPhone sizes and a desktop window; not a phone"
+        title = (f"Duo-size preview: {self.base} ({self.a.label})" if self.preview else
+                 f"Normal-phone check: {self.base} ({self.a.label})")
+        tier = ("a quick look in this Mac's WebKit at the Duo's Safari page sizes, without Safari's toolbars or the "
+                "simulator: not proof, never judged" if self.preview else
+                "this Mac's WebKit (Safari's engine) at ordinary iPhone sizes and a desktop window; not a phone")
         summary = {"kind": "phone", "title": title, "when": datetime.now().isoformat(timespec="seconds"), "tier": tier,
                    "sizes": self.sizes, "rows": rows, "problems": problems}
         (self.out / "summary.json").write_text(json.dumps(summary, indent=2))
@@ -1059,6 +1068,7 @@ def main():
     ph.add_argument("--path", action="append")
     ph.add_argument("--scenario")
     ph.add_argument("--desktop", default="1280x800")
+    ph.add_argument("--sizes", choices=["phones", "duo"], default="phones")
     ph.add_argument("--label", default="phone")
     ph.add_argument("--out", default="duo/shots")
     dp = sub.add_parser("diff")

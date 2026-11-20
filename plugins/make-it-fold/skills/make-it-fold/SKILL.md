@@ -147,12 +147,17 @@ rounds. Still not native after 3: stop and report what is left.
 
 **Then polish, once, when every screen is native.** The judge's minors and three worst things are a to-do
 list too: an edge that does not line up, a gap left empty, a control far wider than what it holds. Save
-the all-native version first (a commit, or a copy). Fix every item you can point at in a picture, within
-step 5's rules; skip any that would add a feature, change the app's colors, fonts or wording, or go
-against an owner's design choice, and say why. Then shoot, judge every screen and run the normal-phone
-check once more. Every screen still native and the phones still the same: keep it. Anything worse: put
-the saved version back and list the polish items under Still open. One polish round, never a second.
-Nothing on the list: skip it and say so.
+the all-native version first (a commit, or a copy), then write the list, one line per item. Take every
+item: fix it within step 5's rules, or skip it if it would add a feature, change the app's colors, fonts
+or wording, or go against an owner's design choice, and say why. Keep the fixes separate, so each can be
+undone alone. Before the shoot, look at every screen a fix touched and undo any fix that did not do what
+you meant (web: `duo-shot phone --sizes duo` draws the Duo's four flat sizes in seconds; native: one
+`duo-sim shot` of that screen in that pose). That look checks your own change; it never scores a screen.
+Then shoot, judge every screen and run the normal-phone check. A screen that is no longer native, or a
+phone picture that changed: undo the fixes behind it, keep the others, and shoot, judge and check once
+more. Still not all native, or the phones still not the same: put the saved version back. Every item not
+kept goes under Still open. That is the whole polish: never a second polish round. Nothing on the list:
+skip it and say so.
 
 **7. Report** in this exact shape (plain words; the reader may not be an engineer):
 - **What changed**: one line per screen (how it is laid out now on each screen), then one line

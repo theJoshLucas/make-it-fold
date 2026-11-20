@@ -66,6 +66,8 @@ is one screenful; a page that scrolls gets one more picture per further screenfu
 the same page are pixel-identical, so `duo-shot compare` reports any changed pixel (a channel moved by
 more than 8 of 255) with where it is, and saves the changed pixels in red under `diff/`. It is WebKit,
 not iOS: no Safari toolbars, no safe areas, and it reports a mouse rather than a touchscreen.
+`--sizes duo` draws the Duo's four flat Safari page sizes (`references/facts.md`) the same way: the
+builder's quick look at its own polish fixes before the real pictures, never proof and never judged.
 
 ## Fit issues and design notes are different things
 `duo-shot` counts **issues** (something is cut off, covered, lost or reloaded) and its exit code follows
