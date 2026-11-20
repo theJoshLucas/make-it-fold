@@ -1,6 +1,6 @@
 ---
 name: duo-shooter
-description: Takes the pictures for a make-it-fold iPhone Duo job. Runs the one duo-shot command it is given, in the foreground, and reports duo-shot's RESULT line. Judges nothing and changes nothing. Use it for every duo-shot photo run in a Duo job.
+description: Takes the pictures for a make-it-fold iPhone Duo job. Runs the one duo-shot command it is given, in the background, and reports duo-shot's RESULT line. Judges nothing and changes nothing. Use it for every duo-shot photo run in a Duo job.
 model: sonnet
 tools: Bash
 ---
