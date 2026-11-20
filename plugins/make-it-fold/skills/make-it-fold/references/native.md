@@ -40,18 +40,41 @@ with a custom view, `titleView`, `UIBarButtonItem(customView:)`) are not shown i
 bar.** Keep every such control reachable another way **on the same screen and in plain sight**: an
 icon bar item with a title, or a button in the content. A long-press or a menu on some other
 screen does not count.
-iOS 27.1 adds `toolbarVerticalEdge`, `toolbarVerticalBehavior`, `axisBehavior` and
-`visibilityPriority` (read Apple's overview live before using them; guard with `#available`).
+iOS 27.1 adds (read Apple's overview live before using them; guard with `#available`):
+`axisBehavior` on an item decides whether it may go in the rail, `visibilityPriority` the order items
+leave for the overflow menu; `toolbarVerticalEdge` (UIKit trait `verticalBarEdge`) tells a custom view
+which side the rail is on; `toolbarVerticalBehavior` (UIKit `preferredVerticalBarBehavior`) keeps a
+sheet's bars horizontal on the cover, where they go vertical by default. The top of the rail is for Back
+or Close, then Done: Done in `topBarPinnedTrailing` (UIKit `pinnedTrailingGroup`), a custom Back or
+Close in `cancellationAction`. A hero image reaches under the rail with `backgroundExtensionEffect()`
+(UIKit `UIBackgroundExtensionView`).
 
 ## reserved regions
-Framework views avoid the camera and the fold automatically. Custom views that place content by
-hand must ask: UIKit `view.reservedRegions(kind: .occlusion / .division)`, SwiftUI
-`GeometryProxy.reservedRegions(...)` (iOS 27.1). The fold is a division only while half-open.
+Framework views (split views, tab bars, alerts, context menus, sheets) avoid the camera and the fold
+by themselves. Scrolling containers do not: a list, table, scroll view or collection view does not
+split its content at the fold, so half-open, a row can run across the crease. Custom views that place
+content by hand, and scrolling content where a row on the crease is hard to read, must ask: UIKit
+`view.reservedRegions(kind: .occlusion / .division)`, SwiftUI `GeometryProxy.reservedRegions(kind:)`
+(iOS 27.1). The fold is a division only while half-open; the outer camera is always an occlusion, the
+inner camera only while it is in use. A region's frame already includes its margins. Ask for inactive
+regions too (SwiftUI `options: .includeInactive`) and leave room for them, so the layout does not jump
+when the fold or the inner camera becomes active. SwiftUI mirrors the frames for right-to-left
+languages (`layoutDirectionBehavior: .fixed` gives them unmirrored). Two views that pair up around the
+fold: use an arrangement view instead of reading the regions.
+
+## hinge
+Never lay out from the hinge angle. Hinge updates (`UIHingeInteraction`) are for using the hinge as an
+input (an animation that follows the angle, a game control, an angle readout) and arrive at a pace the
+system sets. For layout use an arrangement view or the reserved regions, which update during layout.
 
 ## two-pane layouts
 On the inner screen, a list-plus-detail or content-plus-inspector layout fits side by side. Prefer
 the system: `NavigationSplitView`, or iOS 27.1's `ArrangementView` / `UIArrangementViewController`
-(split or overlay). Do not nest an arrangement in a list, scroll view or another split view.
+(split or overlay). Never put an arrangement inside a list, scroll view, grid, collection view or split
+view, and never put a split view or tab view inside an arrangement: navigation goes around it. A split
+arrangement shows only its primary view on the cover held sideways, so the primary is the part people
+need there. `.split.axes(.horizontal)` (or `.vertical`) limits it to one direction: in the other, only
+the primary view shows.
 
 ## navigation
 One `NavigationStack` per column. A side column that brings its own `NavigationStack` inside an
@@ -113,12 +136,16 @@ SAME views (`design.md` has the pattern for each kind of screen).
   recent list the other). Sideways (669 tall) the main action must be in the first screenful.
 - **Forms and sheets:** `.sheet` in compact width. In regular width show the same form view, with
   the same state object, as a trailing column or `.inspector`, or as a sized sheet
-  (`.presentationSizing(.form)`; iOS 27.1's `.presentationPlacement(.leading)` or `.trailing` puts a
-  sheet on one side so the screen behind stays visible: `duo-docs path sheet-placement`).
+  (`.presentationSizing(.form)`; iOS 27's `.presentationPlacement(.leading)` or `.trailing`, sheets
+  only, puts a sheet on one side so the screen behind stays visible: `duo-docs path sheet-placement`.
+  On the inner screen a trailing sheet's toolbar goes vertical; a leading or centred one stays
+  horizontal).
   Never a tray as wide as the inner screen (trap G-06).
 - **Content plus controls (player, map, camera, canvas):** `ArrangementView` (iOS 27.1): `.split`
-  where the two sit side by side or stacked, `.overlay` where controls float over content. It
-  moves them to either side of the fold when half-open. Keep navigation containers outside it.
+  where the two sit side by side or stacked, `.overlay` where controls float over content. Overlay
+  layers the primary (the controls) over the secondary (the content) whenever the screen is flat,
+  open or closed; half-open it puts the secondary on the top or leading side of the fold and the
+  primary on the bottom or trailing side. Keep navigation containers outside it.
 - **Grids:** even column counts on the inner screen, so nothing sits in the crease.
 - **Width limits:** hold single columns, buttons and fields to a phone-like width
   (`.frame(maxWidth: 560)`), aligned or centred on purpose.

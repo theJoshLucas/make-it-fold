@@ -1,6 +1,30 @@
 # Current status
 
-## 2026-11-19 (later): the normal-phone check tool and the polish round (v0.2.2, still NOT published)
+## 2026-11-19 (night): v0.2.3, Apple's edited Duo pages folded into the native recipe, published
+- Why: `duo-docs` reported 5 of Apple's Duo topic pages changed since the recipes were written on 2026-11-18
+  (both arrangement views, reserved regions, the vertical bar edge, the hinge), plus both core pages. The
+  download code is unchanged since then and no copy of the 2026-11-18 pages survives, so each page was
+  checked claim by claim against the recipes instead of diffed.
+- `references/native.md`, all from Apple's current pages:
+  - Reserved regions: scrolling containers (lists, tables, scroll views, collection views) do not split
+    their content at the fold, so a row can sit on the crease half-open; frames already include margins;
+    ask for inactive regions too so the layout does not jump; SwiftUI mirrors frames for right-to-left.
+  - New "hinge" section: never lay out from the hinge angle (`UIHingeInteraction` is for input).
+  - Arrangement views: a split arrangement shows only its primary view on the cover held sideways;
+    `.split.axes(...)` limits it to one direction; no arrangement inside a grid or collection view either,
+    and no split view or tab view inside one; how overlay places its two views when half-open.
+  - `presentationPlacement` is iOS 27 (the recipe said 27.1), sheets only; a trailing sheet's toolbar goes
+    vertical on the inner screen.
+  - Bars: what `axisBehavior`, `visibilityPriority`, `toolbarVerticalEdge` and `toolbarVerticalBehavior` do,
+    Back or Close then Done at the top of the rail, `backgroundExtensionEffect()` for a hero image.
+  - No disagreement found with `references/design.md` (its 12 Apple quotes are all on the current pages).
+  - `duo-docs --write-baseline` run in the same change: every topic page now reads "same".
+- Proven: the native exam (`native-gig-log`) twice. Run 1: 0.94, $2.00; the rename check (a regex) missed
+  a fix that the behaviour judge passed 3 of 3, and the run's files were not kept, so the fix was not seen.
+  Run 2: 1.00, all 15 checks, $1.38. The rename regex had passed 5 of 6 earlier runs; it is left as is until
+  a kept run shows what it misses.
+
+## 2026-11-19 (later): the normal-phone check tool and the polish round (v0.2.2, published the same night)
 - Why: in the first full job the builder had no way to take the normal-phone pictures (it borrowed a
   browser-automation package from another project on the maintainer's Mac), and the fix loop stopped at
   "native", so the judge's minors were listed and never fixed.
