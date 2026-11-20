@@ -86,9 +86,15 @@ The phone layout stays exactly as it is below about 600 px. Add wide rules for t
 - **Check:** `duo-shot web` prints design notes for each pose (one column on a wide screen,
   stretched controls, long lines, unused width, small touch targets). They are prompts for the
   duo-judge agent's scorecard, not failures.
-- **Normal-phone check** has three sizes: 390 px upright and a phone sideways (about 850 x 390) must
-  match "before". At the app's desktop width: an app that already had its own desktop layout must match
-  "before" too (keep the wide rules off it); an app whose desktop showed the phone layout stretched gets
-  the wide layout there as well (the `min-width: 620px and min-height: 480px` rule above includes every
-  desktop and iPad), and the report says so.
+- **Normal-phone check:** `duo-shot phone --url <local url> --scenario duo/scenario.json --label
+  phone-before` on the untouched app, the same with `--label phone-after` when done, then
+  `duo-shot compare <before folder> <after folder>`. It draws the page in this Mac's own WebKit at
+  390 x 844 and 844 x 390, the biggest iPhone (440 x 956 and 956 x 440) and a desktop window
+  (`--desktop 1440x900` for the app's own width, `--desktop none` to leave it out), following the
+  scenario's taps and typing to every named state. Every phone picture must come out the same. The
+  desktop window: an app that already had its own desktop layout must match "before" too (keep the wide
+  rules off it); an app whose desktop showed the phone layout stretched gets the wide layout there as
+  well (the `min-width: 620px and min-height: 480px` rule above includes every desktop and iPad), and
+  the report says so. The check reports a mouse, not a touchscreen, so rules behind `(pointer: coarse)`
+  or `(hover: none)` are never reached: switch the Duo layouts on size alone.
 

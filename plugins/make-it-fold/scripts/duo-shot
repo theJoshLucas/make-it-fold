@@ -24,9 +24,28 @@ NATIVE (an iPhone/iPad app):
   Native layout is judged from the screenshots plus the app's own UI tests;
   duo-shot only checks the app is still running.
 
+PHONE (the normal-phone check for a web app; no simulator, takes seconds):
+  duo-shot phone --url http://localhost:5173 [--path / ...] [--scenario duo/scenario.json]
+                 [--desktop 1280x800|none] [--label before|after] [--out duo/shots]
+  Draws the page in this Mac's own WebKit (Safari's engine) at the sizes of ordinary iPhones (390 x 844
+  upright and 844 x 390 sideways; the biggest, 440 x 956 and 956 x 440) and in a desktop window. It
+  follows the scenario's taps and typing to every named state and saves one picture per state and size,
+  plus one per further screenful where the page scrolls. Take "before" pictures of the untouched app and
+  "after" pictures when the work is done, then compare the two folders: every phone picture must come
+  out the same. Same layout engine and rules as Safari on an iPhone; it has no Safari toolbars or safe
+  areas, and it reports a mouse, not a touchscreen.
+
 COMPARE (two finished runs, side by side):
   duo-shot compare <before folder> <after folder>
-  Writes compare.html into the "after" folder: every screen and pose, before beside after.
+  Writes compare.html into the "after" folder: every screen and pose, before beside after. Two phone
+  runs are also compared pixel by pixel: each picture is "same" or "changed" (with where), the changed
+  pixels are marked in red in diff/, and the exit code is 1 if any phone picture changed. The desktop
+  window is listed apart: it may change when it used to show the phone layout stretched.
+
+DIFF (two pictures, pixel by pixel; the ordinary-iPhone check of a native app uses it):
+  duo-shot diff <before.png> <after.png> [--marks <file.png>]
+  Prints "same", or "changed" with how much and where, and saves the changed pixels in red.
+  Exit 0 = same, 1 = changed.
 
 VERDICTS (after the duo-judge agent has scored each screen of a run, one call per screen):
   duo-shot verdicts <run folder>
@@ -57,11 +76,13 @@ Exit code: 0 = no issues found, 1 = issues found, 2 = could not run.
 """
 import argparse
 import fcntl
+import hashlib
 import html
 import importlib.machinery
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -362,7 +383,22 @@ def compare(before, after):
         return (f'<figure><a href="{rel(r["shot"])}"><img src="{rel(r["thumb"])}" loading="lazy"></a>'
                 f'<figcaption>{word} <span class="{"ok" if not n else "bad"}">{badge}</span></figcaption></figure>')
 
-    pairs = "".join(f'<section><h2>{esc(l)}</h2><div class="pair">{cell(before, brow.get(l), "Before")}'
+    phone = b.get("kind") == "phone" and a.get("kind") == "phone"
+    if (b.get("kind") == "phone") != (a.get("kind") == "phone"):
+        raise ShotError("compare a phone run with a phone run, and a Duo run with a Duo run")
+    diffs = phone_diffs(before, after, brow, arow, labels) if phone else {}
+
+    def verdict(l):
+        d = diffs.get(l)
+        if not d:
+            return ""
+        cls = "ok" if d["same"] else "bad"
+        text = "same as before" if d["same"] else "changed: " + "; ".join(d["why"])
+        marks = "".join(f'<a href="{html.escape(urllib.parse.quote(f))}">red marks: {esc(Path(f).stem)}</a> '
+                        for f in d.get("diffs", []))
+        return f'<p class="{cls}">{esc(text)} {marks}</p>'
+
+    pairs = "".join(f'<section><h2>{esc(l)}</h2>{verdict(l)}<div class="pair">{cell(before, brow.get(l), "Before")}'
                     f'{cell(after, arow.get(l), "After")}</div></section>' for l in labels)
     page = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Before and after on the iPhone Duo</title><style>
@@ -383,7 +419,111 @@ figure{{margin:0;background:var(--card);border-radius:10px;padding:8px}} img{{wi
         print(f"Only in the before run: {', '.join(only_b)}")
     if only_a:
         print(f"Only in the after run: {', '.join(only_a)}")
-    return 0
+    if not phone:
+        return 0
+    bad = []
+    print("\nOrdinary-phone check (this Mac's WebKit), before against after:")
+    for l in labels:
+        d = diffs[l]
+        desk = not d["size"].startswith("phone")
+        word = "same" if d["same"] else ("desktop changed" if desk else "CHANGED")
+        print(f"  {word:<16}{l}" + ("" if d["same"] else ": " + "; ".join(d["why"])))
+        if not d["same"] and not desk:
+            bad.append(l)
+    if any(not d["same"] and not d["size"].startswith("phone") for d in diffs.values()):
+        print("A changed desktop window is expected only where it used to show the phone layout stretched.")
+    print(f"Phones: {len(bad)} of {sum(1 for d in diffs.values() if d['size'].startswith('phone'))} pictures changed."
+          + (f" Red marks: {after / 'diff'}" if bad else ""))
+    return 1 if bad else 0
+
+
+def diff_pictures(before, after, marks=None):
+    before, after = Path(before), Path(after)
+    for f in (before, after):
+        if not f.is_file():
+            raise ShotError(f"no picture at {f}")
+    mark = Path(marks) if marks else after.with_name(after.stem + ".red-marks.png")
+    p = subprocess.run([str(webshot_tool()), "diff", str(before), str(after), str(mark)], capture_output=True, text=True)
+    try:
+        res = json.loads(p.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        raise ShotError(f"could not compare the pictures: {(p.stderr or p.stdout).strip()}")
+    if res.get("event") == "error":
+        raise ShotError(f"could not compare the pictures: {res.get('detail')}")
+    if not res["changed"]:
+        print("same")
+        return 0
+    if res["sizes"] != "same":
+        print(f"changed: the pictures are different sizes ({res['sizes']})")
+        return 1
+    x, y, w, h = res["box"]
+    print(f"changed: {100 * res['changed'] / res['total']:.1f}% of the picture, inside x {x} to {x + w}, y {y} to {y + h} "
+          f"(pixels). Red marks: {mark}")
+    return 1
+
+
+def webshot_tool():
+    """duo-webshot, built once from duo-webshot.swift with this Mac's own Swift compiler, kept in the cache."""
+    src = HERE / "duo-webshot.swift"
+    dev = subprocess.run(["xcode-select", "-p"], capture_output=True, text=True).stdout.strip()
+    key = hashlib.sha256(src.read_bytes() + dev.encode()).hexdigest()[:12]
+    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "make-it-fold"
+    binary = cache / f"duo-webshot-{key}"
+    if binary.exists():
+        return binary
+    cache.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=cache) as tmp:
+        built = Path(tmp) / "duo-webshot"
+        r = subprocess.run(["xcrun", "swiftc", "-O", str(src), "-o", str(built)], capture_output=True, text=True)
+        if r.returncode or not built.exists():
+            last = (r.stderr.strip().splitlines() or ["no message"])[-1]
+            raise ShotError(f"could not build the phone-check helper with the Swift compiler that comes with Xcode: {last}")
+        built.replace(binary)
+    for old in cache.glob("duo-webshot-*"):  # earlier builds of an older helper
+        if old != binary:
+            old.unlink(missing_ok=True)
+    return binary
+
+
+def phone_diffs(before, after, brow, arow, labels):
+    """Every phone-check picture against its "before", pixel by pixel."""
+    tool = webshot_tool()
+    (after / "diff").mkdir(exist_ok=True)
+    out = {}
+    for l in labels:
+        o, r = brow.get(l), arow.get(l)
+        size = (r or o)["size"]
+        if not o or not r:
+            out[l] = {"same": False, "size": size, "why": ["only in the " + ("after" if r else "before") + " run"]}
+            continue
+        why, marks = [], []
+        if o.get("pageHeight") != r.get("pageHeight"):
+            why.append(f"the page was {o.get('pageHeight')} px high, now {r.get('pageHeight')} px")
+        scale = int(str(r.get("pixels", "1 x 1")).split(" x ")[0]) / max(1, int(r.get("w") or 1))
+        for bf, af in [(o["shot"], r["shot"])] + list(zip(o.get("scrolls") or [], r.get("scrolls") or [])):
+            mark = after / "diff" / Path(af).name
+            p = subprocess.run([str(tool), "diff", str(before / bf), str(after / af), str(mark)], capture_output=True, text=True)
+            try:
+                res = json.loads(p.stdout.strip().splitlines()[-1])
+            except (ValueError, IndexError):
+                raise ShotError(f"could not compare {bf} with {af}: {p.stderr.strip() or p.stdout.strip()}")
+            if res.get("event") == "error":
+                raise ShotError(f"could not compare {bf} with {af}: {res.get('detail')}")
+            if not res.get("changed"):
+                continue
+            screen = "first screen" if af == r["shot"] else Path(af).stem.rsplit("-", 1)[-1].replace("scroll", "screen ")
+            if res.get("sizes") != "same":
+                why.append(f"{screen}: the picture is a different size ({res['sizes']})")
+                continue
+            x, y, w, h = (round(v / scale) for v in res["box"])
+            why.append(f"{screen}: {100 * res['changed'] / res['total']:.1f}% of the picture, inside x {x} to {x + w}, "
+                       f"y {y} to {y + h} (points)")
+            if mark.exists():
+                marks.append(str(mark.relative_to(after)))
+        if len(o.get("scrolls") or []) != len(r.get("scrolls") or []):
+            why.append(f"{1 + len(o.get('scrolls') or [])} screens to scroll through before, {1 + len(r.get('scrolls') or [])} now")
+        out[l] = {"same": not why, "size": size, "why": why, "diffs": marks}
+    return out
 
 
 class WebRun:
@@ -802,6 +942,98 @@ class NativeRun(WebRun):
         return self.finish(f"Duo check: {self.a.bundle} ({self.a.label}) - review every screenshot")
 
 
+PHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 "
+            "(KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1")
+PHONE_SIZES = [("phone", 390, 844), ("phone-sideways", 844, 390), ("phone-max", 440, 956), ("phone-max-sideways", 956, 440)]
+
+
+class PhoneRun:
+    """The normal-phone check: ordinary iPhone sizes and a desktop window, drawn by this Mac's WebKit."""
+
+    def __init__(self, a):
+        self.a = a
+        u = urllib.parse.urlsplit(a.url)
+        if u.hostname not in LOCAL_HOSTS:
+            raise ShotError(f"{a.url} is not on this computer. The normal-phone check runs against a local copy.")
+        self.base = f"{u.scheme}://{u.netloc}"
+        scenario = json.loads(Path(a.scenario).read_text()) if a.scenario else {}
+        self.paths = a.path or scenario.get("paths") or [u.path or "/"]
+        for p in self.paths:
+            if not isinstance(p, str) or not p.startswith("/") or p.startswith("//"):
+                raise ShotError(f"path {p!r} must start with a single '/' (it is added to {self.base})")
+        self.steps = scenario.get("steps") or {}
+        self.sizes = [{"name": n, "w": w, "h": h, "ua": PHONE_UA} for n, w, h in PHONE_SIZES]
+        if a.desktop != "none":
+            try:
+                w, h = (int(v) for v in a.desktop.lower().split("x"))
+            except ValueError:
+                raise ShotError(f"--desktop wants a size like 1280x800 (or none), got {a.desktop!r}")
+            self.sizes.append({"name": "desktop", "w": w, "h": h, "ua": ""})
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.out = Path(a.out).resolve() / f"{stamp}-{a.label}"
+        (self.out / "shots").mkdir(parents=True, exist_ok=True)
+
+    def go(self):
+        try:
+            return self.shoot()
+        except Exception:
+            if not any((self.out / "shots").glob("*.png")):  # a run that drew nothing leaves no folder behind
+                shutil.rmtree(self.out, ignore_errors=True)
+            raise
+
+    def shoot(self):
+        tool = webshot_tool()
+        job = self.out / "job.json"
+        job.write_text(json.dumps({"base": self.base, "paths": self.paths, "steps": self.steps,
+                                   "out": str(self.out), "sizes": self.sizes}))
+        try:
+            p = subprocess.run([str(tool), "shoot", str(job)], capture_output=True, text=True, timeout=900)
+        except subprocess.TimeoutExpired:
+            raise ShotError("the phone check took over 15 minutes and was stopped")
+        rows, problems = [], []
+        for line in p.stdout.splitlines():
+            try:
+                e = json.loads(line)
+            except ValueError:
+                continue
+            if e.get("event") == "error":
+                d = str(e.get("detail"))
+                if "connect to the server" in d:
+                    d = f"nothing answered at {self.base}: is the app running there?"
+                raise ShotError(d)
+            if e.get("event") == "problem":
+                problems.append(e)
+            elif e.get("event") == "shot":
+                name = Path(e["file"]).stem
+                th = f"thumbs/{name}.png"
+                thumb(self.out / e["file"], self.out / th)
+                issues = [{"kind": "scrolls-sideways", "detail": "the page is wider than the window"}] if e.get("sidewaysScroll") else []
+                rows.append({"label": f"{e['screen']} · {e['size']}", "screen": e["screen"], "path": e["path"], "size": e["size"],
+                             "shot": e["file"], "thumb": th, "scrolls": e.get("scrolls") or [], "w": e["w"], "h": e["h"],
+                             "pixels": e["pixels"], "pageHeight": e["pageHeight"], "issues": issues})
+        if p.returncode not in (0, None) and not rows:
+            raise ShotError(f"the phone-check helper stopped: {(p.stderr or p.stdout).strip()[-300:]}")
+        title = f"Normal-phone check: {self.base} ({self.a.label})"
+        tier = "this Mac's WebKit (Safari's engine) at ordinary iPhone sizes and a desktop window; not a phone"
+        summary = {"kind": "phone", "title": title, "when": datetime.now().isoformat(timespec="seconds"), "tier": tier,
+                   "sizes": self.sizes, "rows": rows, "problems": problems}
+        (self.out / "summary.json").write_text(json.dumps(summary, indent=2))
+        contact_sheet(self.out, [dict(r, size=f"{r['size']}, {r['w']} x {r['h']}, page {r['pageHeight']} high") for r in rows], title)
+        lines = [f"# {title}", "", f"Tier: {tier}.", ""]
+        for r in rows:
+            extra = f" (+{len(r['scrolls'])} more screen{'s' if len(r['scrolls']) != 1 else ''} below)" if r["scrolls"] else ""
+            lines.append(f"- **{r['label']}** ({r['w']} x {r['h']}){extra}: " +
+                         ("ok" if not r["issues"] else "; ".join(i["detail"] for i in r["issues"])))
+        for e in problems:
+            lines.append(f"- **problem {e.get('path')} · {e.get('size')}**: {e.get('detail')}")
+        lines += ["", f"Pictures: {self.out / 'contact.html'}",
+                  "Compare with the other run: duo-shot compare <before folder> <after folder>"]
+        (self.out / "report.md").write_text("\n".join(lines) + "\n")
+        print("\n".join(lines))
+        print("RESULT " + json.dumps({"run": str(self.out), "pictures": len(rows), "problems": len(problems)}))
+        return 0 if not problems else 1
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="mode", required=True)
@@ -822,6 +1054,17 @@ def main():
             s.add_argument("--scenario")
             s.add_argument("--env", action="append", metavar="KEY=VALUE")
             s.add_argument("--order", choices=["screen", "pose"], default="screen")
+    ph = sub.add_parser("phone")
+    ph.add_argument("--url", required=True)
+    ph.add_argument("--path", action="append")
+    ph.add_argument("--scenario")
+    ph.add_argument("--desktop", default="1280x800")
+    ph.add_argument("--label", default="phone")
+    ph.add_argument("--out", default="duo/shots")
+    dp = sub.add_parser("diff")
+    dp.add_argument("before")
+    dp.add_argument("after")
+    dp.add_argument("--marks")
     c = sub.add_parser("compare")
     c.add_argument("before")
     c.add_argument("after")
@@ -833,6 +1076,10 @@ def main():
             sys.exit(compare(a.before, a.after))
         if a.mode == "verdicts":
             sys.exit(verdicts(a.run))
+        if a.mode == "diff":
+            sys.exit(diff_pictures(a.before, a.after, a.marks))
+        if a.mode == "phone":
+            sys.exit(PhoneRun(a).go())
         run = WebRun(a) if a.mode == "web" else NativeRun(a)
         lock = hold_run_lock()  # kept open until this process ends
         sys.exit(run.go())

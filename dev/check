@@ -27,6 +27,8 @@ plugins/make-it-fold/scripts/duo-docs quotes | grep -q "No saved Apple pages" &&
 # Both agents exist, and each names the model it is meant to run on.
 grep -q "^model: sonnet$" plugins/make-it-fold/agents/duo-shooter.md || { echo "duo-shooter must run on sonnet"; exit 1; }
 grep -q "^model: fable$" plugins/make-it-fold/agents/duo-judge.md && grep -q "^effort: low$" plugins/make-it-fold/agents/duo-judge.md || { echo "duo-judge must run on fable at low effort"; exit 1; }
+# The normal-phone check still keeps phones the same and catches a rule that reaches them (about 15 s).
+dev/phone-check >/dev/null || { dev/phone-check; exit 1; }
 # Trap IDs are unique.
 dup=$(grep -h -o "^### [A-Z]-[0-9]*" plugins/make-it-fold/skills/make-it-fold/traps/*.md | sort | uniq -d)
 [ -z "$dup" ] || { echo "duplicate trap ids: $dup"; exit 1; }

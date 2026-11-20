@@ -1,0 +1,41 @@
+#!/bin/bash
+# The normal-phone check, proven on the practice app (no simulator, no Claude usage, about 15 seconds).
+# The stretched-phone Woodshed against its fixed copy: every phone picture the same, the desktop window
+# changed. A copy whose wide rule also catches phones held sideways: those pictures must come out CHANGED.
+set -uo pipefail
+cd "$(dirname "$0")/.."
+ROOT=$(pwd)
+P="$ROOT/plugins/make-it-fold/scripts/duo-shot"
+SC="$ROOT/dev/answers/web-phone/fixed/duo/scenario.json"
+OUT=$(mktemp -d "${TMPDIR:-/tmp}/make-it-fold-phone-check.XXXXXX")
+PIDS=()
+trap 'kill "${PIDS[@]}" 2>/dev/null; rm -rf "${OUT:?}"' EXIT
+cp -R "$ROOT/dev/answers/web-phone/fixed" "$OUT/wrong"
+sed -i '' 's/@media (min-width: 620px) and (min-height: 480px) {/@media (min-width: 620px) {/' "$OUT/wrong/style.css"
+grep -q "@media (min-width: 620px) {" "$OUT/wrong/style.css" || { echo "phone-check: could not make the wrong copy"; exit 1; }
+free_port() { python3 -c "import socket; s=socket.socket(); s.bind(('127.0.0.1', 0)); print(s.getsockname()[1]); s.close()"; }
+serve() { (cd "$1" && exec python3 -m http.server "$2" --bind 127.0.0.1 >/dev/null 2>&1) & PIDS+=($!); disown $!; }
+B=$(free_port); serve "$ROOT/plugins/make-it-fold/practice/web-phone" "$B"
+F=$(free_port); serve "$ROOT/dev/answers/web-phone/fixed" "$F"
+W=$(free_port); serve "$OUT/wrong" "$W"
+python3 -c "import time; time.sleep(1)"
+shoot() {  # shoot <port> <label>: prints the run folder
+  "$P" phone --url "http://localhost:$1" --scenario "$SC" --label "$2" --out "$OUT/shots" > "$OUT/$2.txt" 2>&1
+  grep '^RESULT ' "$OUT/$2.txt" | sed 's/^RESULT //' | python3 -c "import json,sys; print(json.load(sys.stdin)['run'])" 2>/dev/null
+}
+before=$(shoot "$B" before); fixed=$(shoot "$F" fixed); wrong=$(shoot "$W" wrong)
+for r in before fixed wrong; do
+  [ -n "${!r}" ] || { echo "phone-check: no pictures for $r:"; tail -3 "$OUT/$r.txt"; exit 1; }
+done
+fails=0
+"$P" compare "$before" "$fixed" > "$OUT/fixed-compare.txt" 2>&1; fe=$?
+if [ $fe -ne 0 ] || ! grep -q "Phones: 0 of 12 pictures changed" "$OUT/fixed-compare.txt" || ! grep -q "desktop changed" "$OUT/fixed-compare.txt"; then
+  echo "phone-check: the fixed copy should keep all 12 phone pictures and change the desktop window:"; cat "$OUT/fixed-compare.txt"; fails=1
+fi
+"$P" compare "$before" "$wrong" > "$OUT/wrong-compare.txt" 2>&1; we=$?
+changed=$(grep -c '^  CHANGED' "$OUT/wrong-compare.txt")
+if [ $we -ne 1 ] || [ "$changed" -ne 6 ] || grep -qE '^  CHANGED .* · phone(-max)?:' "$OUT/wrong-compare.txt"; then
+  echo "phone-check: the wrong copy should change exactly the 6 sideways phone pictures (got $changed, exit $we):"
+  cat "$OUT/wrong-compare.txt"; fails=1
+fi
+[ $fails -eq 0 ] && echo "phone check passed" || exit 1

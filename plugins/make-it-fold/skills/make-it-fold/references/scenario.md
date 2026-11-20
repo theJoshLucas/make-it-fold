@@ -25,6 +25,9 @@ seconds, `expect_visible` selector (on screen and not covered), `expect_value` [
 `expect_text` text, and `name` text: it names the state the following pictures show ("item open",
 "new-entry form"), and each named state gets its own block in the design scorecard. Reach every
 state a person can see (an open item, each form, a menu) and name it, on the cover and unfolded.
+The normal-phone check (`duo-shot phone`) reads the same file: it does the `tap`, `type`, `wait` and
+`name` steps and photographs each named state at ordinary iPhone sizes, skipping `pose` and the
+`expect_*` checks, which belong to the fold positions.
 Keep app-specific notes for the next job in `duo/notes.md`.
 
 ## native screens (so every screen is photographed, not just the first)

@@ -15,6 +15,7 @@ Before changing anything:
 - Manifests only: `claude plugin validate . && claude plugin validate plugins/make-it-fold`
 - Scripts on a real Mac: `plugins/make-it-fold/scripts/duo-setup` (exit 0 = Mac ready) and
   `plugins/make-it-fold/scripts/duo-scan plugins/make-it-fold/practice/web`
+- Normal-phone check (no simulator, no Claude usage, about 15 seconds; `dev/check` runs it): `dev/phone-check`
 - Judge check (about 12 minutes of the Duo simulator and about $1.50 of Claude usage; ask first): `dev/judge-check`
   (Opus) or `dev/judge-check fable`. Required after any change to the scorecard, `agents/duo-judge.md` or the
   judge's model: it must give the known verdict on Apple's Settings and three practice apps.

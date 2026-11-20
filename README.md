@@ -66,11 +66,17 @@ When you type `/duo` inside an app's folder, Claude:
    verdict: **native**, **fits only** or **broken**.
 6. 🔧 **Fixes what broke, then builds the Duo layouts** for every screen that is not native yet.
 7. 📸 **Takes "after" pictures**, puts them side by side with the "before" ones, has the judge score
-   them again, and checks an ordinary iPhone looks exactly as it did.
-8. 📝 **Reports in plain words**: what each screen looks like now, the scorecard, what the simulator
+   them again, and checks an ordinary iPhone looks exactly as it did. For a website that check draws
+   every screen at ordinary iPhone sizes in your Mac's own Safari engine and compares each picture
+   with "before", pixel for pixel. Any screen the judge doesn't score native goes back for another
+   round, up to three.
+8. ✨ **Polishes once**, when every screen passes: it fixes the small things the judge noted (an edge
+   that doesn't line up, a gap left empty), then shoots and judges again. If the polish makes anything
+   worse, it puts the passing version back.
+9. 📝 **Reports in plain words**: what each screen looks like now, the scorecard, what the simulator
    proved, what only a real phone can prove, and the exact step to publish. Then it **asks before
    publishing**.
-9. 📓 **Writes down what it learned**, so the next job on your Mac starts smarter.
+10. 📓 **Writes down what it learned**, so the next job on your Mac starts smarter.
 
 Only want the safety net? Type `/duo fit`: it fixes what breaks, changes no layouts, and still tells
 you how each screen scores.
@@ -199,7 +205,8 @@ simulator open and move by itself. That's normal.
 Results land in your app's `duo/shots/` folder, one dated folder per run: full-size screenshots
 (the exact pixel sizes the App Store asks for), small copies for a quick look, a `contact.html`
 page showing every position at a glance, a `review.md` scorecard, and after a fix a `compare.html`
-page with before and after side by side. Add `duo/shots/` to your `.gitignore` if
+page with before and after side by side. Websites also get `phone-before` and `phone-after` folders
+from the ordinary-iPhone check. Add `duo/shots/` to your `.gitignore` if
 you don't want the pictures saved with your code.
 
 ## 🧭 What kinds of apps

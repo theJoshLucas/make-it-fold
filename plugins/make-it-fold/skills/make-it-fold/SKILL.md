@@ -26,7 +26,7 @@ and is the exact failure this plugin exists to prevent.
 ## Which job
 - **Native (the default).** "Optimize / convert / redesign / make this work for the Duo", or `/duo`.
 - **Fit only.** Only when the person says so in words ("just make sure nothing breaks", "don't
-  change the design", `/duo fit`). Skip step 4's layout plan, build no new layouts, and do not
+  change the design", `/duo fit`). Skip step 4's layout plan, build no new layouts, skip the polish round, and do not
   read `traps/design.md`. Change the code only for a must-do item, a failed check, or code that
   plainly does what a fit trap describes: with none of those, the right answer is "passes, no
   changes". Still score each screen in step 6 and say what a native job would change.
@@ -86,7 +86,12 @@ realistic amount of made-up data. **Ask the person once** whether to also photog
 half-open positions, book (unfolded sideways, bent like a book) and laptop (unfolded upright, bent like
 a laptop): they are the only pictures that show what sits on the crease, and they add about two folds
 plus a few seconds a screen (say the minutes for this app). Write the answer in `duo/notes.md` for
-next time; never skip them without asking. Run the app locally, never against live data. Then hand the
+next time; never skip them without asking. Run the app locally, never against live data. While the code
+is still untouched, take the normal-phone "before" pictures yourself (seconds, no Duo simulator): web,
+`duo-shot phone --url <local url> --scenario duo/scenario.json --label phone-before`; native, every screen
+upright on an iPhone 17 Pro simulator on iOS 27 (status bar fixed first with `xcrun simctl status_bar <udid>
+override --time 9:41 --batteryState charged --batteryLevel 100`), saved with `xcrun simctl io <udid> screenshot`.
+Already changed the code? Take them from a `git worktree` of the starting commit. Then hand the
 duo-shooter agent (`make-it-fold:duo-shooter`) the exact command:
 `duo-shot web --url <local url> --scenario duo/scenario.json --label before` or
 `duo-shot native --bundle <id> --app <path> --scenario duo/scenario.json --label before`
@@ -128,18 +133,33 @@ the same result. Native: guard iOS 27.1 APIs with `if #available(iOS 27.1, *)`.
 
 **6. After.** The duo-shooter agent runs the same `duo-shot` with `--label after`, in the same positions
 as "before" (book and laptop too if the person said yes); then `duo-shot compare <before folder> <after folder>` for the side-by-side
-page. The duo-judge agent scores the new run, one call per screen, the same way as in step 4. Then the normal-phone check: web at 390 px, a phone sideways (about 850 x 390) and the
-app's desktop width; native on an iPhone 17 Pro simulator on iOS 27, upright and sideways, and on
-the app's minimum iOS. It must match "before". Then fix:
-every screen the judge did not score native goes back to step 5 with the judge's "no" answers and its
-three worst things as the list to fix, and the round repeats (build, shoot, judge). Up to 3 rounds. Still
-not native after 3: stop and report what is left.
+page. The duo-judge agent scores the new run, one call per screen, the same way as in step 4. Then the
+normal-phone check, the same way as "before". Web: `duo-shot phone ... --label phone-after`, then
+`duo-shot compare <phone-before folder> <phone-after folder>`: every phone picture must come out **same**
+(exit 0). A **CHANGED** one means the new layout reaches an ordinary iPhone: fix it (`diff/` marks the
+changed pixels in red). The desktop window follows `references/web.md`. Native: the same screens upright
+again, each checked with `duo-shot diff <before.png> <after.png>` (must say "same"), and on the app's
+minimum iOS too. Sideways only if this session has a way to turn that simulator (no command-line tool
+turns an ordinary iPhone): otherwise write "ordinary iPhone held sideways: not checked" under Still open.
+Then fix: every screen the judge did not score native goes back to step 5 with the judge's "no" answers and its
+three worst things as the list to fix, and the round repeats (build, shoot, judge, phone check). Up to 3
+rounds. Still not native after 3: stop and report what is left.
+
+**Then polish, once, when every screen is native.** The judge's minors and three worst things are a to-do
+list too: an edge that does not line up, a gap left empty, a control far wider than what it holds. Save
+the all-native version first (a commit, or a copy). Fix every item you can point at in a picture, within
+step 5's rules; skip any that would add a feature, change the app's colors, fonts or wording, or go
+against an owner's design choice, and say why. Then shoot, judge every screen and run the normal-phone
+check once more. Every screen still native and the phones still the same: keep it. Anything worse: put
+the saved version back and list the polish items under Still open. One polish round, never a second.
+Nothing on the list: skip it and say so.
 
 **7. Report** in this exact shape (plain words; the reader may not be an engineer):
 - **What changed**: one line per screen (how it is laid out now on each screen), then one line
   per fit fix.
-- **Scorecard**: every screen with the judge's before and after verdict, copied from the two
-  `judge.md` files word for word, which model judged, and the path to `compare.html`.
+- **Scorecard**: every screen with the judge's before, after and after-polish verdicts, copied from the
+  `judge.md` files word for word, which model judged, the path to `compare.html`, the polish items
+  fixed and the ones left (with why), and the normal-phone result (same, or what changed).
 - **Proof, by tier**: what the Duo simulator proved; what a desktop browser proved; what was only
   read in code; what only the real phone can prove (feel, camera, crease, real hinge, split view).
 - **Still open**: anything not native, failed, unchecked, or needing a decision.
@@ -156,7 +176,7 @@ maintainers so every user gets it.
 ## Hard rules
 - "Done" = every screen is **native** on both screens (or listed under Still open with the reason),
   the scenario passes in every required pose, folding mid-task loses nothing, ordinary phones look
-  as before, the tested revision is named, and evidence is labelled by tier. For a fit-only job,
+  as before (the normal-phone pictures compare the same), the tested revision is named, and evidence is labelled by tier. For a fit-only job,
   "passes, no changes" is a complete, good answer.
 - Design verdicts come from the duo-judge agent, from pictures taken in this job at the owner's
   settings. Never write, soften or "correct" a verdict yourself. With no simulator and no browser,

@@ -11,7 +11,8 @@ designed for the iPhone Duo.
 Use the `make-it-fold` skill and follow its job exactly, in order: setup and fresh Apple docs, scan,
 read the route and the design rules, "before" pictures of EVERY screen in every fold position, the
 design scorecard and a layout plan, the fit fixes and the new layouts, "after" pictures with the
-side-by-side page and a normal-phone check, then the five-part report.
+side-by-side page and a normal-phone check, up to three fix rounds, one polish round once every screen
+is native, then the five-part report.
 
 "Nothing is cut off" is not done: every screen must score **native** on the cover and on the inner
 screen, judged from the pictures by the duo-judge agent, never by you. The duo-shooter agent takes the

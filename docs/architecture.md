@@ -6,7 +6,7 @@ A Claude Code plugin, published from this repo as its own marketplace.
 - `.claude-plugin/marketplace.json`: the marketplace (one plugin, source `./plugins/make-it-fold`).
 - `plugins/make-it-fold/`: everything users install.
   - `skills/make-it-fold/SKILL.md`: the job (setup and fresh knowledge, scan, route, before, design review
-    and layout plan, build, after, report, learn). Two bars: it fits (the floor) and it is native (the goal).
+    and layout plan, build, after with up to three fix rounds and then one polish round, report, learn). Two bars: it fits (the floor) and it is native (the goal).
     `references/*.md` are read on demand only; `references/design.md` (the scorecard and the layout
     patterns) and `traps/design.md` are read by every job except a fit-only one. `traps/*.md` hold the
     trap notebook (no private sources).
@@ -14,8 +14,9 @@ A Claude Code plugin, published from this repo as its own marketplace.
     `duo-setup.md`, `duo-shot.md`. `duo.md`, `duo-new.md` and the skill set `model: opus` and `effort: high`
     for the turn (Claude Code returns to the person's own model on their next message).
   - `agents/duo-shooter.md` (`model: sonnet`, Bash only): runs the duo-shot command it is handed in the
-    background (a foreground command stops at 10 minutes), waits for the one notification that it ended
-    without checking on it, and answers with duo-shot's RESULT line. `agents/duo-judge.md` (`model: fable`,
+    background (a foreground command stops at 10 minutes) with its output and exit code going to a log,
+    waits on that log with one blocking command (a helper's background command stops when the helper ends
+    its turn), and answers with duo-shot's RESULT line. `agents/duo-judge.md` (`model: fable`,
     `effort: low`; Read, Write, Glob): scores ONE screen of a run folder against `references/design.md` and
     writes `judge/<screen>.md` there; the builder makes one call per screen (one agent holding a whole
     big app's pictures stops seeing the early ones), and `duo-shot verdicts <run>` gathers them into
@@ -30,7 +31,11 @@ A Claude Code plugin, published from this repo as its own marketplace.
     `duo-shot` (web: proxies the app through `duo-listen`, injects `duo-reporter.js`, measures in every pose;
     native: install, then one launch per scenario screen (launch arguments, environment values, a link,
     taps) and a screenshot of each in every pose, or with `--order pose` one fold per pose and every screen
-    started in it; `compare` puts two runs side by side),
+    started in it; `phone`: the normal-phone check, see below; `compare` puts two runs side by side and
+    compares two phone runs pixel by pixel; `diff` compares two pictures; `verdicts` gathers the judge's
+    files, matched by the screen named inside each),
+    `duo-webshot.swift` (the engine behind `phone`, `compare` and `diff`: built once with Xcode's Swift
+    compiler into `~/.cache/make-it-fold/duo-webshot-<hash>`, older builds removed),
     `duo-listen` (localhost-only server/proxy), `duo-reporter.js`,
     `duo-docs` (downloads Apple's Duo pages on every run; see below), `duo-notes` (the local lessons notebook),
     `duo-models` (which model each part of the job runs on; see below).
@@ -48,6 +53,19 @@ Simulator Safari -> `http://localhost:8787/...` -> `duo-listen` (proxy) -> the a
 HTML responses get `<script src="/__duo/reporter.js">`. The reporter posts measurements on load and resize and
 answers commands (rect, value, setValue, text, calibrate) by polling `/__duo/cmd`. Taps are real taps through
 duoctl, mapped from page pixels to screen points with one calibration tap on a transparent pane.
+
+## How the normal-phone check works
+`duo-shot phone` writes a job file and runs `duo-webshot shoot`. For each size (390 x 844, 844 x 390,
+440 x 956 and 956 x 440 with an iPhone user agent, and a desktop window, 1280 x 800 by default) and each
+path it opens a fresh, never-shown window holding a WebKit view (nothing saved between sizes), tells
+WebKit to draw although the window is never on screen, loads the page from the local server, follows the
+scenario's `tap` (the element is scrolled into view, then pointer, mouse and click events go to whatever
+is on top at its centre), `type`, `wait` and `name` steps, and photographs each named state once all
+animations and images have settled (endless animations are stopped at their first frame). Each picture
+is one screenful; a page that scrolls gets one more picture per further screenful, up to 10. Two runs of
+the same page are pixel-identical, so `duo-shot compare` reports any changed pixel (a channel moved by
+more than 8 of 255) with where it is, and saves the changed pixels in red under `diff/`. It is WebKit,
+not iOS: no Safari toolbars, no safe areas, and it reports a mouse rather than a touchscreen.
 
 ## Fit issues and design notes are different things
 `duo-shot` counts **issues** (something is cut off, covered, lost or reloaded) and its exit code follows
