@@ -1,5 +1,35 @@
 # Current status
 
+## 2026-11-19 (later): the normal-phone check tool and the polish round (v0.2.2, still NOT published)
+- Why: in the first full job the builder had no way to take the normal-phone pictures (it borrowed a
+  browser-automation package from another project on the maintainer's Mac), and the fix loop stopped at
+  "native", so the judge's minors were listed and never fixed.
+- `duo-shot phone`: the page drawn in this Mac's own WebKit (`scripts/duo-webshot.swift`, built once with
+  Xcode's Swift compiler) at 390 x 844, 844 x 390, 440 x 956, 956 x 440 and a desktop window, following the
+  scenario's taps and typing to every named state; about 3 seconds for 15 pictures, no simulator.
+  `duo-shot compare` checks two phone runs pixel by pixel (exit 1 if a phone picture changed, red marks in
+  `diff/`); `duo-shot diff` compares two pictures (for native). Proven, each by `dev/phone-check` (in `dev/check`):
+  - the same page twice: 0 pixels differ in all 12 pictures;
+  - the stretched-phone practice app against its fixed copy: 12 of 12 phone pictures same, desktop changed, exit 0;
+  - a copy whose wide rule is width-only: exactly the 6 sideways phone pictures CHANGED, exit 1;
+  - the first full job's own result: 12 of 12 same, agreeing with the builder's borrowed check.
+  - Tried wrong: no server (a clear "is the app running" message, exit 2, no empty folder left), a remote
+    address (refused), a bad `--desktop` (refused), a missing picture for `diff` (exit 2).
+  - `--sizes duo` draws the Duo's four flat Safari sizes the same way (2 seconds): the builder's quick look at a
+    polish fix. Its picture of the open session matched the simulator's closely. Never proof, never judged.
+- Polish round, run twice from the first job's all-native result (fresh sessions, judge on Opus):
+  - First version (one shoot; anything worse put the whole saved version back): the builder tried 2 of 3 notes;
+    one fix worked, the other shrank the note box to half the card, the judge marked that screen down, and the
+    good fix was thrown away with the bad one. $3.04, nothing gained.
+  - Rewritten: every item on the list is fixed or skipped with a reason, fixes kept separate, a quick look at each
+    first, and a screen that drops gets only its own fixes undone, then one more shoot and judge. Second run:
+    8 items, 5 fixed, 3 skipped with reasons; the judge disliked one fix (the note box stretched to the card's
+    edge read as a stretched phone form), it alone was undone, and the next shoot scored all three screens native
+    with phones 12 of 12 the same. Kept: the Add button under the week's numbers, Piece and Minutes on one row,
+    Save note sized to its label. About 13 minutes and $4.00 ($3.87 Opus, $0.13 Sonnet).
+  - The judge can complain both ways: "box stops short of the card's edge" was a minor, and the fix for it made the
+    screen "fits only". The per-fix undo absorbs that; it costs one extra shoot and judge when it happens.
+
 ## 2026-11-19: v0.2.2, built and checked, NOT published
 - Why: on a real app, v0.2.1's job scored every screen "native", and the owner found half of each big screen
   empty on a real Duo. Three causes, all in the plugin:
@@ -86,11 +116,10 @@
   - The fixed Woodshed (`dev/answers/web-phone/fixed`) is not native on the cover held sideways: its main button
     is pushed off the bottom. The exam that uses it does not check that.
   - The exams were not rerun: they run sandboxed with no simulator, so they cannot reach the shooter or the judge.
-  - No normal-phone check tool: step 6 asks for web pictures at 390 px, a phone sideways and desktop width, and the
-    plugin gives the builder nothing to take them with. In the first full job the builder went looking and borrowed
-    a browser-automation package from another project on the maintainer's Mac; a user's Mac may have none.
-  - The fix loop stops at "native": the judge's minors (an edge that does not line up, a dead gap in a column) are
-    listed and never fixed.
+  - An ordinary iPhone held sideways is not checked for native apps: no command-line tool turns an ordinary iPhone
+    simulator. duoctl's orientation event left Safari upright on an iPhone 17 simulator (iOS 27.2), and Xcode's
+    `devicectl device orientation` only reaches simulators it lists as "connected" (see "Two simulators at once").
+    The job says "not checked" unless the session has a way to turn it (for example a simulator panel).
 - First full `/duo` job on the new flow (the stretched-phone practice app, a fresh session given only `/duo` and
   the owner's answers up front, flat poses, judge on Opus): about 22 minutes, $7.69 ($7.49 Opus, $0.20 Sonnet).
   Before: list fits only, open session broken, new-session form broken. Round 1 made the list and the form native;
