@@ -305,8 +305,14 @@ def verdicts(run):
     head = ("| Screen | Screen size | 1 room | 2 more | 3 short | 4 bars | 5 fold | 6 forms | 7 same app | 8 deliberate | Verdict |\n"
             "|---|---|---|---|---|---|---|---|---|---|---|")
     rows, bodies, missing, unsure, tally = [], [], [], [], {}
+    found = {}  # a judge file is matched by the screen named in its table, whatever the file is called
+    for g in sorted((run / "judge").glob("*.md")) if (run / "judge").is_dir() else []:
+        for l in g.read_text().splitlines():
+            if l.startswith("| ") and not l.startswith("| Screen") and not l.startswith("|---"):
+                found.setdefault(l.split("|")[1].strip(), g)
+                break
     for name in order:
-        f = run / "judge" / judge_file_name(name)
+        f = found.get(name, run / "judge" / judge_file_name(name))
         if not f.exists():
             missing.append(name)
             continue

@@ -85,8 +85,26 @@
     did). `dev/judge-check` catches a judge that drifts on the known screens, not on borderline ones.
   - The fixed Woodshed (`dev/answers/web-phone/fixed`) is not native on the cover held sideways: its main button
     is pushed off the bottom. The exam that uses it does not check that.
-  - No full `/duo` job has run end to end on the new flow. The exams were not rerun: they run sandboxed with no
-    simulator, so they cannot reach the shooter or the judge.
+  - The exams were not rerun: they run sandboxed with no simulator, so they cannot reach the shooter or the judge.
+  - No normal-phone check tool: step 6 asks for web pictures at 390 px, a phone sideways and desktop width, and the
+    plugin gives the builder nothing to take them with. In the first full job the builder went looking and borrowed
+    a browser-automation package from another project on the maintainer's Mac; a user's Mac may have none.
+  - The fix loop stops at "native": the judge's minors (an edge that does not line up, a dead gap in a column) are
+    listed and never fixed.
+- First full `/duo` job on the new flow (the stretched-phone practice app, a fresh session given only `/duo` and
+  the owner's answers up front, flat poses, judge on Opus): about 22 minutes, $7.69 ($7.49 Opus, $0.20 Sonnet).
+  Before: list fits only, open session broken, new-session form broken. Round 1 made the list and the form native;
+  the judge scored the open session fits only (half empty on the inner screen upright); round 2 fixed it, and all
+  three scored native on a fresh shoot. Ordinary phones matched "before". The builder never wrote a verdict and
+  handed the judge only the allowed facts. Two plugin faults it hit, both fixed and retested:
+  - The picture-taker started duo-shot in the background and ended its turn, which stops a helper's background
+    command, so the first shoot was cut off (the builder noticed and retried). It now waits with one blocking wait
+    command until the run's log has an exit line; retested from a fresh session: 2 of 2 pictures, $0.05.
+  - The judge wrote `_new_session_form.md` where `duo-shot verdicts` looked for `__new_session_form.md`.
+    `verdicts` now finds each judge file by the screen named inside it; retested with misnamed and missing files.
+  - Also: `web.md` told the builder that desktop width must match "before" while its own recommended rule changes
+    every desktop. Now: an app with its own desktop layout keeps it; a stretched phone layout on desktop gets the
+    wide layout, and the report says so.
   - `model: opus` in a plugin command header was checked with a test command: it moved a Haiku session onto
     Opus for that turn. `effort: high` cannot be seen from outside; it follows Claude Code's documentation.
   - Not published: this version lives on a local branch until the maintainer says to publish.

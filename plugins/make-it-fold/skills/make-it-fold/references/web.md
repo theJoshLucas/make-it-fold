@@ -86,6 +86,9 @@ The phone layout stays exactly as it is below about 600 px. Add wide rules for t
 - **Check:** `duo-shot web` prints design notes for each pose (one column on a wide screen,
   stretched controls, long lines, unused width, small touch targets). They are prompts for the
   duo-judge agent's scorecard, not failures.
-- **Normal-phone check** now has three sizes: 390 px upright, a phone sideways (about 850 x 390)
-  and the app's desktop width. All three must match "before".
+- **Normal-phone check** has three sizes: 390 px upright and a phone sideways (about 850 x 390) must
+  match "before". At the app's desktop width: an app that already had its own desktop layout must match
+  "before" too (keep the wide rules off it); an app whose desktop showed the phone layout stretched gets
+  the wide layout there as well (the `min-width: 620px and min-height: 480px` rule above includes every
+  desktop and iPad), and the report says so.
 
